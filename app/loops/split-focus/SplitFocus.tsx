@@ -531,7 +531,7 @@ export default function SplitFocus() {
 
         g.driftIn -= dt;
         if (g.driftIn <= 0) {
-          const strength = 380 + Math.min(g.elapsed * 6, 400);
+          const strength = 190 + Math.min(g.elapsed * 10, 600);
           const ang = Math.random() * Math.PI * 2;
           g.driftX = Math.cos(ang) * strength;
           g.driftY = Math.sin(ang) * strength;
