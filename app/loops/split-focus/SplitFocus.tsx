@@ -8,7 +8,7 @@ const RING_CX = CANVAS_W / 2;
 const RING_CY = CANVAS_H / 2 + 20;
 const RING_R = 230;
 const LINE_Y = RING_CY + 40;
-const LINE_WINDOW = 24;
+const LINE_WINDOW = 40;
 
 const COLORS = {
   M: "#ff2d9c",
@@ -87,6 +87,8 @@ type GameState = {
 
   math: MathQ;
   mathLevel: number;
+
+  ruleFlash: number;
 
   effects: Effect[];
 
@@ -285,6 +287,8 @@ function freshState(best: number): GameState {
     math: makeMath(0),
     mathLevel: 0,
 
+    ruleFlash: 0,
+
     effects: [],
 
     goodFlash: 0,
@@ -303,6 +307,7 @@ type Snapshot = {
   math: MathQ;
   ruleLabel: string;
   ruleIn: number;
+  ruleFlash: number;
 };
 
 function snapshot(g: GameState): Snapshot {
@@ -315,6 +320,7 @@ function snapshot(g: GameState): Snapshot {
     math: { ...g.math },
     ruleLabel: g.rule.label,
     ruleIn: g.ruleIn,
+    ruleFlash: g.ruleFlash,
   };
 }
 
@@ -335,6 +341,7 @@ const EMPTY_SNAP: Snapshot = {
   },
   ruleLabel: "",
   ruleIn: 0,
+  ruleFlash: 0,
 };
 
 export default function SplitFocus() {
@@ -536,7 +543,16 @@ export default function SplitFocus() {
           g.ruleLevel += 1;
           g.rule = makeRule(g.ruleLevel);
           g.ruleIn = Math.max(12, 20 - g.ruleLevel * 0.4);
+          g.ruleFlash = 1.6;
+          addEffect(g.effects, {
+            x: RING_CX,
+            y: RING_CY - 40,
+            color: "#ff2d9c",
+            text: "! NEW RULE !",
+            ttl: 1.6,
+          });
         }
+        if (g.ruleFlash > 0) g.ruleFlash = Math.max(0, g.ruleFlash - dt);
 
         g.spawnIn -= dt;
         if (g.spawnIn <= 0) {
@@ -677,7 +693,11 @@ export default function SplitFocus() {
           }}
         >
           <MathPanel math={snap.math} />
-          <RulePanel rule={snap.ruleLabel} timeLeft={snap.ruleIn} />
+          <RulePanel
+            rule={snap.ruleLabel}
+            timeLeft={snap.ruleIn}
+            flash={snap.ruleFlash}
+          />
         </div>
 
         <canvas ref={canvasRef} style={{ display: "block", cursor: "none" }} />
@@ -866,12 +886,22 @@ function draw(ctx: CanvasRenderingContext2D, g: GameState) {
   ctx.arc(RING_CX, RING_CY, RING_R, 0, Math.PI * 2);
   ctx.clip();
 
-  ctx.strokeStyle = "rgba(255,255,255,.06)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(RING_CX - RING_R, LINE_Y);
-  ctx.lineTo(RING_CX + RING_R, LINE_Y);
-  ctx.stroke();
+  const zoneGrad = ctx.createLinearGradient(
+    0,
+    LINE_Y - LINE_WINDOW,
+    0,
+    LINE_Y + LINE_WINDOW,
+  );
+  zoneGrad.addColorStop(0, "rgba(34,224,255,0)");
+  zoneGrad.addColorStop(0.5, "rgba(34,224,255,.09)");
+  zoneGrad.addColorStop(1, "rgba(34,224,255,0)");
+  ctx.fillStyle = zoneGrad;
+  ctx.fillRect(
+    RING_CX - RING_R,
+    LINE_Y - LINE_WINDOW,
+    RING_R * 2,
+    LINE_WINDOW * 2,
+  );
 
   ctx.strokeStyle = "rgba(34,224,255,.5)";
   ctx.setLineDash([6, 6]);
@@ -1271,15 +1301,33 @@ function MathPanel({ math }: { math: MathQ }) {
   );
 }
 
-function RulePanel({ rule, timeLeft }: { rule: string; timeLeft: number }) {
+function RulePanel({
+  rule,
+  timeLeft,
+  flash,
+}: {
+  rule: string;
+  timeLeft: number;
+  flash: number;
+}) {
+  const flashing = flash > 0;
   return (
     <div
       style={{
         flex: 1,
-        background: "rgba(0,0,0,.6)",
-        border: "1px solid rgba(255,45,156,.35)",
-        padding: "10px 14px",
+        background: flashing ? "rgba(255,45,156,.18)" : "rgba(0,0,0,.6)",
+        border: flashing
+          ? "2px solid #ff2d9c"
+          : "1px solid rgba(255,45,156,.35)",
+        boxShadow: flashing
+          ? "0 0 32px rgba(255,45,156,.7)"
+          : "none",
+        padding: flashing ? "9px 13px" : "10px 14px",
         pointerEvents: "auto",
+        animation: flashing
+          ? "gl-pulse 0.35s ease-in-out infinite"
+          : undefined,
+        transition: "background .25s, box-shadow .25s",
       }}
     >
       <div
@@ -1296,9 +1344,10 @@ function RulePanel({ rule, timeLeft }: { rule: string; timeLeft: number }) {
             fontSize: 11,
             letterSpacing: ".2em",
             color: "#ff2d9c",
+            textShadow: flashing ? "0 0 12px rgba(255,45,156,.9)" : "none",
           }}
         >
-          ▚ RULE
+          {flashing ? "! NEW RULE !" : "▚ RULE"}
         </span>
         <span
           style={{
