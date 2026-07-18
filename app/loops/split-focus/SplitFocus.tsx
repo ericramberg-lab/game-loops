@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 const CANVAS_W = 900;
 const CANVAS_H = 620;
 const RING_CX = CANVAS_W / 2;
-const RING_CY = CANVAS_H / 2 + 20;
+const RING_CY = CANVAS_H / 2 + 55;
 const RING_R = 230;
 const LINE_Y = RING_CY + 40;
 const LINE_WINDOW = 40;
@@ -717,7 +717,10 @@ export default function SplitFocus() {
         <StabilityBar value={Math.max(0, snap.stability)} />
         <Stat label="SCORE" value={Math.floor(snap.score).toString()} />
         <Stat label="TIME" value={`${snap.elapsed.toFixed(1)}s`} />
-        <Stat label="BEST" value={snap.best.toString()} />
+        <HighScoreStat
+          value={snap.best}
+          beating={Math.floor(snap.score) > snap.best && snap.best > 0}
+        />
       </div>
 
       <div
@@ -1197,6 +1200,59 @@ function Stat({ label, value }: { label: string; value: string }) {
           fontWeight: 700,
           fontSize: 20,
           color: "#fff",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function HighScoreStat({
+  value,
+  beating,
+}: {
+  value: number;
+  beating: boolean;
+}) {
+  return (
+    <div
+      style={{
+        minWidth: 140,
+        padding: "6px 14px",
+        border: `1px solid ${beating ? "rgba(70,240,160,.6)" : "rgba(34,224,255,.4)"}`,
+        background: beating ? "rgba(70,240,160,.08)" : "rgba(34,224,255,.05)",
+        transition: "background .2s, border-color .2s",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontFamily: "var(--font-ibm-plex-mono), monospace",
+          fontSize: 11,
+          letterSpacing: ".2em",
+          color: beating ? "#46f0a0" : "#22e0ff",
+          marginBottom: 4,
+          animation: beating
+            ? "gl-pulse 0.9s ease-in-out infinite"
+            : undefined,
+        }}
+      >
+        <span>◆</span>
+        <span>{beating ? "NEW BEST" : "HI SCORE"}</span>
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-chakra-petch), sans-serif",
+          fontWeight: 700,
+          fontSize: 30,
+          color: beating ? "#46f0a0" : "#22e0ff",
+          textShadow: beating
+            ? "0 0 16px rgba(70,240,160,.7)"
+            : "0 0 14px rgba(34,224,255,.55)",
+          letterSpacing: ".02em",
         }}
       >
         {value}
