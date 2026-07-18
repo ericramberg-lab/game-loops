@@ -43,6 +43,19 @@ type MathQ = {
   input: string;
   timeLeft: number;
   maxTime: number;
+  state: "input" | "correct" | "wrong";
+  hold: number;
+};
+
+type Effect = {
+  x: number;
+  y: number;
+  color: string;
+  text: string;
+  age: number;
+  ttl: number;
+  vy: number;
+  ringR: number;
 };
 
 type GameState = {
@@ -74,6 +87,8 @@ type GameState = {
 
   math: MathQ;
   mathLevel: number;
+
+  effects: Effect[];
 
   goodFlash: number;
   badFlash: number;
@@ -202,7 +217,25 @@ function makeMath(level: number): MathQ {
     input: "",
     timeLeft: maxTime,
     maxTime,
+    state: "input",
+    hold: 0,
   };
+}
+
+function addEffect(
+  effects: Effect[],
+  opts: { x: number; y: number; color: string; text: string; ttl?: number },
+) {
+  effects.push({
+    x: opts.x,
+    y: opts.y,
+    color: opts.color,
+    text: opts.text,
+    age: 0,
+    ttl: opts.ttl ?? 0.9,
+    vy: -60,
+    ringR: 0,
+  });
 }
 
 function makeBlock(id: number, level: number): Block {
@@ -252,6 +285,8 @@ function freshState(best: number): GameState {
     math: makeMath(0),
     mathLevel: 0,
 
+    effects: [],
+
     goodFlash: 0,
     badFlash: 0,
 
@@ -289,7 +324,15 @@ const EMPTY_SNAP: Snapshot = {
   best: 0,
   stability: 100,
   elapsed: 0,
-  math: { q: "", a: 0, input: "", timeLeft: 0, maxTime: 1 },
+  math: {
+    q: "",
+    a: 0,
+    input: "",
+    timeLeft: 0,
+    maxTime: 1,
+    state: "input",
+    hold: 0,
+  },
   ruleLabel: "",
   ruleIn: 0,
 };
@@ -337,7 +380,13 @@ export default function SplitFocus() {
       const rulish = inWindow.filter((b) => g.rule.matches(b));
       if (rulish.length === 0) {
         g.stability -= 6;
-        g.badFlash = 0.25;
+        g.badFlash = 0.3;
+        addEffect(g.effects, {
+          x: g.cx,
+          y: g.cy - 24,
+          color: "#ff5e7a",
+          text: "-6 WRONG",
+        });
         return;
       }
       for (const b of rulish) {
@@ -346,10 +395,22 @@ export default function SplitFocus() {
         if (g.rule.mode === "press") {
           g.score += 20;
           g.stability = Math.min(100, g.stability + 4);
-          g.goodFlash = 0.2;
+          g.goodFlash = 0.25;
+          addEffect(g.effects, {
+            x: b.x,
+            y: b.y,
+            color: "#46f0a0",
+            text: "+20",
+          });
         } else {
           g.stability -= 12;
-          g.badFlash = 0.3;
+          g.badFlash = 0.35;
+          addEffect(g.effects, {
+            x: b.x,
+            y: b.y,
+            color: "#ff5e7a",
+            text: "-12",
+          });
         }
       }
     };
@@ -357,18 +418,20 @@ export default function SplitFocus() {
     const submitMath = () => {
       const g = stateRef.current;
       if (g.status !== "running") return;
+      if (g.math.state !== "input") return;
       if (g.math.input === "") return;
       const guess = parseInt(g.math.input, 10);
       if (guess === g.math.a) {
         g.score += 30;
         g.stability = Math.min(100, g.stability + 6);
-        g.goodFlash = 0.2;
-        g.mathLevel += 0.35;
-        g.math = makeMath(g.mathLevel);
+        g.goodFlash = 0.25;
+        g.math.state = "correct";
+        g.math.hold = 0.7;
       } else {
         g.stability -= 10;
-        g.badFlash = 0.3;
-        g.math.input = "";
+        g.badFlash = 0.35;
+        g.math.state = "wrong";
+        g.math.hold = 0.55;
       }
     };
 
@@ -394,6 +457,7 @@ export default function SplitFocus() {
         submitMath();
         return;
       }
+      if (g.math.state !== "input") return;
       if (e.code === "Backspace") {
         e.preventDefault();
         g.math.input = g.math.input.slice(0, -1);
@@ -476,22 +540,53 @@ export default function SplitFocus() {
             const matches = g.rule.matches(b);
             if (g.rule.mode === "press" && matches) {
               g.stability -= 10;
-              g.badFlash = Math.max(g.badFlash, 0.25);
+              g.badFlash = Math.max(g.badFlash, 0.3);
+              addEffect(g.effects, {
+                x: b.x,
+                y: LINE_Y,
+                color: "#ff5e7a",
+                text: "-10 MISS",
+              });
             } else if (g.rule.mode === "skip" && matches) {
               g.score += 12;
               g.stability = Math.min(100, g.stability + 2);
+              addEffect(g.effects, {
+                x: b.x,
+                y: LINE_Y,
+                color: "#22e0ff",
+                text: "+12",
+                ttl: 0.7,
+              });
             }
             b.scored = true;
           }
         }
         g.blocks = g.blocks.filter((b) => b.y < RING_CY + RING_R + 30);
 
-        g.math.timeLeft -= dt;
-        if (g.math.timeLeft <= 0) {
-          g.stability -= 15;
-          g.badFlash = Math.max(g.badFlash, 0.35);
-          g.math = makeMath(g.mathLevel);
+        if (g.math.state === "input") {
+          g.math.timeLeft -= dt;
+          if (g.math.timeLeft <= 0) {
+            g.stability -= 15;
+            g.badFlash = Math.max(g.badFlash, 0.35);
+            g.math.state = "wrong";
+            g.math.hold = 0.55;
+            g.math.input = String(g.math.a);
+          }
+        } else {
+          g.math.hold -= dt;
+          if (g.math.hold <= 0) {
+            if (g.math.state === "correct") g.mathLevel += 0.35;
+            g.math = makeMath(g.mathLevel);
+          }
         }
+
+        for (const eff of g.effects) {
+          eff.age += dt;
+          eff.y += eff.vy * dt;
+          eff.vy *= 1 - dt * 1.4;
+          eff.ringR += 120 * dt;
+        }
+        g.effects = g.effects.filter((eff) => eff.age < eff.ttl);
 
         if (g.goodFlash > 0) g.goodFlash = Math.max(0, g.goodFlash - dt);
         if (g.badFlash > 0) g.badFlash = Math.max(0, g.badFlash - dt);
@@ -528,18 +623,7 @@ export default function SplitFocus() {
           marginBottom: 12,
         }}
       >
-        <StatBar
-          label="STABILITY"
-          value={Math.max(0, snap.stability)}
-          max={100}
-          color={
-            snap.stability > 60
-              ? "#46f0a0"
-              : snap.stability > 30
-                ? "#ffcf5c"
-                : "#ff5e7a"
-          }
-        />
+        <StabilityBar value={Math.max(0, snap.stability)} />
         <Stat label="SCORE" value={Math.floor(snap.score).toString()} />
         <Stat label="TIME" value={`${snap.elapsed.toFixed(1)}s`} />
         <Stat label="BEST" value={snap.best.toString()} />
@@ -726,6 +810,42 @@ function draw(ctx: CanvasRenderingContext2D, g: GameState) {
     ctx.lineTo(g.cx, g.cy + 14);
     ctx.stroke();
   }
+
+  for (const eff of g.effects) {
+    const life = 1 - eff.age / eff.ttl;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, life * 1.5);
+    ctx.strokeStyle = eff.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(eff.x, eff.y + eff.age * 30, eff.ringR, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.font = '700 18px "Chakra Petch", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillStyle = eff.color;
+    ctx.shadowColor = eff.color;
+    ctx.shadowBlur = 14;
+    ctx.fillText(eff.text, eff.x, eff.y);
+    ctx.restore();
+  }
+
+  if (g.status === "running" && g.stability < 40) {
+    const t = 1 - Math.max(0, g.stability) / 40;
+    const grad = ctx.createRadialGradient(
+      CANVAS_W / 2,
+      CANVAS_H / 2,
+      Math.min(CANVAS_W, CANVAS_H) * 0.25,
+      CANVAS_W / 2,
+      CANVAS_H / 2,
+      Math.max(CANVAS_W, CANVAS_H) * 0.7,
+    );
+    const pulse = 0.6 + 0.4 * Math.sin(g.elapsed * 6);
+    grad.addColorStop(0, "rgba(255,94,122,0)");
+    grad.addColorStop(1, `rgba(255,94,122,${0.55 * t * pulse})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
 }
 
 function drawBlock(ctx: CanvasRenderingContext2D, b: Block) {
@@ -775,49 +895,84 @@ function shapeCells(s: ShapeKey): Array<[number, number]> {
   }
 }
 
-function StatBar({
-  label,
-  value,
-  max,
-  color,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  color: string;
-}) {
-  const pct = Math.max(0, Math.min(1, value / max));
+function StabilityBar({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(1, value / 100));
+  const rounded = Math.round(value);
+  const color =
+    value > 60 ? "#46f0a0" : value > 30 ? "#ffcf5c" : "#ff5e7a";
+  const critical = value <= 30;
+  const segments = 20;
+  const filled = Math.round(pct * segments);
   return (
-    <div style={{ flex: 2, minWidth: 200 }}>
+    <div style={{ flex: 2.4, minWidth: 260 }}>
       <div
         style={{
-          fontFamily: "var(--font-ibm-plex-mono), monospace",
-          fontSize: 11,
-          letterSpacing: ".16em",
-          color: "#6a6a76",
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
           marginBottom: 6,
         }}
       >
-        {label}
+        <span
+          style={{
+            fontFamily: "var(--font-ibm-plex-mono), monospace",
+            fontSize: 11,
+            letterSpacing: ".16em",
+            color: critical ? color : "#6a6a76",
+            animation: critical ? "gl-pulse 0.9s ease-in-out infinite" : undefined,
+          }}
+        >
+          STABILITY
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--font-chakra-petch), sans-serif",
+            fontWeight: 700,
+            fontSize: 22,
+            color,
+            textShadow: `0 0 12px ${color}88`,
+            animation: critical
+              ? "gl-pulse 0.9s ease-in-out infinite"
+              : undefined,
+          }}
+        >
+          {rounded}
+          <span
+            style={{
+              fontSize: 12,
+              color: "#6a6a76",
+              marginLeft: 3,
+              fontWeight: 500,
+            }}
+          >
+            /100
+          </span>
+        </span>
       </div>
       <div
         style={{
-          height: 10,
+          display: "flex",
+          gap: 3,
+          height: 22,
           border: "1px solid rgba(255,255,255,.15)",
-          background: "rgba(0,0,0,.4)",
-          position: "relative",
+          padding: 3,
+          background: "rgba(0,0,0,.5)",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            inset: 1,
-            width: `calc(${pct * 100}% - 2px)`,
-            background: color,
-            boxShadow: `0 0 12px ${color}88`,
-            transition: "background .2s",
-          }}
-        />
+        {Array.from({ length: segments }).map((_, i) => {
+          const on = i < filled;
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                background: on ? color : "rgba(255,255,255,.05)",
+                boxShadow: on ? `0 0 8px ${color}66` : "none",
+                transition: "background .15s",
+              }}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -853,15 +1008,46 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function MathPanel({ math }: { math: MathQ }) {
   const pct = Math.max(0, math.timeLeft / math.maxTime);
-  const critical = pct < 0.3;
+  const critical = math.state === "input" && pct < 0.3;
+  const isCorrect = math.state === "correct";
+  const isWrong = math.state === "wrong";
+
+  const accent = isCorrect
+    ? "#46f0a0"
+    : isWrong
+      ? "#ff5e7a"
+      : critical
+        ? "#ff5e7a"
+        : "#22e0ff";
+
+  const label = isCorrect ? "✓ CORRECT" : isWrong ? "✗ WRONG" : "▚ SOLVE";
+  const inputColor = isCorrect
+    ? "#46f0a0"
+    : isWrong
+      ? "#ff5e7a"
+      : math.input
+        ? "#22e0ff"
+        : "rgba(255,255,255,.25)";
+
   return (
     <div
       style={{
         flex: 1,
-        background: "rgba(0,0,0,.6)",
-        border: "1px solid rgba(34,224,255,.35)",
+        background: isCorrect
+          ? "rgba(70,240,160,.08)"
+          : isWrong
+            ? "rgba(255,94,122,.08)"
+            : "rgba(0,0,0,.6)",
+        border: `1px solid ${
+          isCorrect
+            ? "rgba(70,240,160,.55)"
+            : isWrong
+              ? "rgba(255,94,122,.55)"
+              : "rgba(34,224,255,.35)"
+        }`,
         padding: "10px 14px",
         pointerEvents: "auto",
+        transition: "background .15s, border-color .15s",
       }}
     >
       <div
@@ -877,10 +1063,11 @@ function MathPanel({ math }: { math: MathQ }) {
             fontFamily: "var(--font-ibm-plex-mono), monospace",
             fontSize: 11,
             letterSpacing: ".2em",
-            color: "#22e0ff",
+            color: accent,
+            textShadow: isCorrect || isWrong ? `0 0 10px ${accent}` : "none",
           }}
         >
-          ▚ SOLVE
+          {label}
         </span>
         <span
           style={{
@@ -889,7 +1076,7 @@ function MathPanel({ math }: { math: MathQ }) {
             color: critical ? "#ff5e7a" : "#8a8a95",
           }}
         >
-          {math.timeLeft.toFixed(1)}s
+          {math.state === "input" ? `${math.timeLeft.toFixed(1)}s` : ""}
         </span>
       </div>
       <div
@@ -919,8 +1106,9 @@ function MathPanel({ math }: { math: MathQ }) {
             fontSize: 28,
             minWidth: 90,
             textAlign: "right",
-            color: math.input ? "#22e0ff" : "rgba(255,255,255,.25)",
-            textShadow: math.input ? "0 0 14px rgba(34,224,255,.6)" : "none",
+            color: inputColor,
+            textShadow:
+              isCorrect || isWrong || math.input ? `0 0 14px ${inputColor}` : "none",
           }}
         >
           {math.input || "___"}
@@ -937,9 +1125,10 @@ function MathPanel({ math }: { math: MathQ }) {
           style={{
             position: "absolute",
             inset: 0,
-            width: `${pct * 100}%`,
-            background: critical ? "#ff5e7a" : "#22e0ff",
-            boxShadow: `0 0 10px ${critical ? "#ff5e7a" : "#22e0ff"}`,
+            width: `${(isCorrect || isWrong ? 1 : pct) * 100}%`,
+            background: accent,
+            boxShadow: `0 0 10px ${accent}`,
+            transition: "background .15s",
           }}
         />
       </div>
