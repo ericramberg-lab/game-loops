@@ -32,7 +32,8 @@ export type Mechanic = {
   price: string;
   preview: string;
   tags: Tag[];
-  badge?: "NEW" | "HOT";
+  badge?: "NEW" | "HOT" | "LIVE";
+  href?: string;
 };
 
 export const ALL_TAGS: Tag[] = [
@@ -66,6 +67,20 @@ export const difficultyStyle: Record<
 };
 
 export const mechanics: Mechanic[] = [
+  {
+    name: "Split Focus",
+    slug: "split-focus.loop",
+    blurb:
+      "Three tasks at once — keep the crosshair centered, react to matching blocks, and solve the math as it drains.",
+    engines: ["Web"],
+    platforms: ["Desktop"],
+    diff: "Hard",
+    price: "FREE",
+    preview: "focus meter preview",
+    tags: ["focus", "multitask", "reflex", "timing"],
+    badge: "LIVE",
+    href: "/loops/split-focus",
+  },
   {
     name: "Lockpicking",
     slug: "lockpicking.loop",
