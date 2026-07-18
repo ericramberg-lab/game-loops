@@ -15,7 +15,7 @@ export default function Page() {
         padding: "24px 24px 48px",
       }}
     >
-      <div style={{ maxWidth: 1100, width: "100%" }}>
+      <div style={{ width: 900 }}>
         <div style={{ marginBottom: 16 }}>
           <div
             style={{
