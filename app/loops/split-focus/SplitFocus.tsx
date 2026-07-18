@@ -437,6 +437,7 @@ export default function SplitFocus() {
         text: "+30 SOLVED",
         ttl: 1.1,
       });
+      syncSnapRef.current();
     };
 
     const failMath = (penalty: number, popupText: string) => {
@@ -454,6 +455,7 @@ export default function SplitFocus() {
         text: popupText,
         ttl: 1.0,
       });
+      syncSnapRef.current();
     };
 
     const onKey = (e: KeyboardEvent) => {
