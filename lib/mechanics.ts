@@ -1,5 +1,6 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type Engine = "Unity" | "Unreal" | "Godot" | "Web";
+export type Platform = "Mobile" | "Desktop" | "Gamepad";
 
 export type Tag =
   | "lockpick"
@@ -26,6 +27,7 @@ export type Mechanic = {
   slug: string;
   blurb: string;
   engines: Engine[];
+  platforms: Platform[];
   diff: Difficulty;
   price: string;
   preview: string;
@@ -69,6 +71,7 @@ export const mechanics: Mechanic[] = [
     slug: "lockpicking.loop",
     blurb: "Tension-and-pick tumbler with a moving sweet spot.",
     engines: ["Unity", "Godot"],
+    platforms: ["Desktop", "Gamepad", "Mobile"],
     diff: "Medium",
     price: "$18",
     preview: "lockpick preview",
@@ -79,6 +82,7 @@ export const mechanics: Mechanic[] = [
     slug: "safecracking.loop",
     blurb: "Listen for the click, dial in each number.",
     engines: ["Unity", "Unreal"],
+    platforms: ["Desktop", "Gamepad"],
     diff: "Hard",
     price: "$24",
     preview: "safe dial preview",
@@ -90,6 +94,7 @@ export const mechanics: Mechanic[] = [
     slug: "hacking.loop",
     blurb: "Route the signal through a live circuit puzzle.",
     engines: ["Godot", "Web"],
+    platforms: ["Desktop", "Mobile"],
     diff: "Medium",
     price: "$16",
     preview: "circuit preview",
@@ -100,6 +105,7 @@ export const mechanics: Mechanic[] = [
     slug: "fishing.loop",
     blurb: "Cast, hook and hold the reel meter to land it.",
     engines: ["Unity", "Godot"],
+    platforms: ["Mobile", "Desktop", "Gamepad"],
     diff: "Easy",
     price: "$14",
     preview: "reel meter preview",
@@ -110,6 +116,7 @@ export const mechanics: Mechanic[] = [
     slug: "wiresplice.loop",
     blurb: "Match and connect the live wires before the spark.",
     engines: ["Unreal", "Unity"],
+    platforms: ["Mobile", "Desktop"],
     diff: "Easy",
     price: "$12",
     preview: "wires preview",
@@ -120,6 +127,7 @@ export const mechanics: Mechanic[] = [
     slug: "pickpocket.loop",
     blurb: "Steady-hand grab QTE with a shrinking window.",
     engines: ["Unity", "Web"],
+    platforms: ["Mobile", "Gamepad"],
     diff: "Hard",
     price: "$20",
     preview: "grab QTE preview",
@@ -128,4 +136,15 @@ export const mechanics: Mechanic[] = [
   },
 ];
 
-export const chips: string[] = ["Unity", "Unreal", "Godot", "Web", "Easy", "Medium", "Hard"];
+export const chips: string[] = [
+  "Mobile",
+  "Desktop",
+  "Gamepad",
+  "Unity",
+  "Unreal",
+  "Godot",
+  "Web",
+  "Easy",
+  "Medium",
+  "Hard",
+];
