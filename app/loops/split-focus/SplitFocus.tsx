@@ -423,15 +423,29 @@ export default function SplitFocus() {
       const guess = parseInt(g.math.input, 10);
       if (guess === g.math.a) {
         g.score += 30;
-        g.stability = Math.min(100, g.stability + 6);
-        g.goodFlash = 0.25;
+        g.stability = Math.min(100, g.stability + 14);
+        g.goodFlash = 0.3;
         g.math.state = "correct";
         g.math.hold = 0.7;
+        addEffect(g.effects, {
+          x: RING_CX,
+          y: RING_CY - 140,
+          color: "#46f0a0",
+          text: "+14 SOLVED",
+          ttl: 1.1,
+        });
       } else {
         g.stability -= 10;
         g.badFlash = 0.35;
         g.math.state = "wrong";
         g.math.hold = 0.55;
+        addEffect(g.effects, {
+          x: RING_CX,
+          y: RING_CY - 140,
+          color: "#ff5e7a",
+          text: "-10 WRONG",
+          ttl: 1.0,
+        });
       }
     };
 
@@ -511,7 +525,7 @@ export default function SplitFocus() {
           g.badFlash = Math.max(g.badFlash, 0.15);
         }
 
-        g.stability -= 1.4 * dt;
+        g.stability -= 0.5 * dt;
 
         g.ruleIn -= dt;
         if (g.ruleIn <= 0) {
