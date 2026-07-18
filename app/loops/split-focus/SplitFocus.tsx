@@ -374,12 +374,27 @@ export default function SplitFocus() {
     ctx.scale(dpr, dpr);
 
     const onMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
       const g = stateRef.current;
-      g.mouseX = ((e.clientX - rect.left) / rect.width) * CANVAS_W;
-      g.mouseY = ((e.clientY - rect.top) / rect.height) * CANVAS_H;
+      if (document.pointerLockElement === canvas) {
+        g.cx += e.movementX;
+        g.cy += e.movementY;
+      } else {
+        const rect = canvas.getBoundingClientRect();
+        g.mouseX = ((e.clientX - rect.left) / rect.width) * CANVAS_W;
+        g.mouseY = ((e.clientY - rect.top) / rect.height) * CANVAS_H;
+      }
     };
     canvas.addEventListener("mousemove", onMove);
+
+    const onCanvasClick = () => {
+      if (
+        stateRef.current.status === "running" &&
+        document.pointerLockElement !== canvas
+      ) {
+        canvas.requestPointerLock?.();
+      }
+    };
+    canvas.addEventListener("click", onCanvasClick);
 
     const tryPress = () => {
       const g = stateRef.current;
@@ -516,21 +531,36 @@ export default function SplitFocus() {
 
         g.driftIn -= dt;
         if (g.driftIn <= 0) {
-          const strength = 500 + Math.min(g.elapsed * 10, 500);
+          const strength = 380 + Math.min(g.elapsed * 6, 400);
           const ang = Math.random() * Math.PI * 2;
           g.driftX = Math.cos(ang) * strength;
           g.driftY = Math.sin(ang) * strength;
           g.driftIn = 0.55 + Math.random() * 0.7;
         }
 
-        const k = 4;
-        const damp = 3;
-        const ax = k * (g.mouseX - g.cx) + g.driftX - damp * g.vx;
-        const ay = k * (g.mouseY - g.cy) + g.driftY - damp * g.vy;
-        g.vx += ax * dt;
-        g.vy += ay * dt;
-        g.cx += g.vx * dt;
-        g.cy += g.vy * dt;
+        const locked = document.pointerLockElement === canvas;
+        const damp = locked ? 3 : 3;
+        if (locked) {
+          const ax = g.driftX - damp * g.vx;
+          const ay = g.driftY - damp * g.vy;
+          g.vx += ax * dt;
+          g.vy += ay * dt;
+          g.cx += g.vx * dt;
+          g.cy += g.vy * dt;
+        } else {
+          const k = 4;
+          const ax = k * (g.mouseX - g.cx) + g.driftX - damp * g.vx;
+          const ay = k * (g.mouseY - g.cy) + g.driftY - damp * g.vy;
+          g.vx += ax * dt;
+          g.vy += ay * dt;
+          g.cx += g.vx * dt;
+          g.cy += g.vy * dt;
+        }
+
+        if (g.cx < 20) g.cx = 20;
+        if (g.cx > CANVAS_W - 20) g.cx = CANVAS_W - 20;
+        if (g.cy < 20) g.cy = 20;
+        if (g.cy > CANVAS_H - 20) g.cy = CANVAS_H - 20;
 
         const dx = g.cx - RING_CX;
         const dy = g.cy - RING_CY;
@@ -642,6 +672,9 @@ export default function SplitFocus() {
           g.stability = 0;
           g.status = "over";
           g.best = Math.max(g.best, Math.floor(g.score));
+          if (document.pointerLockElement === canvas) {
+            document.exitPointerLock?.();
+          }
           syncSnapRef.current();
         }
       }
@@ -655,7 +688,11 @@ export default function SplitFocus() {
     return () => {
       cancelAnimationFrame(raf);
       canvas.removeEventListener("mousemove", onMove);
+      canvas.removeEventListener("click", onCanvasClick);
       window.removeEventListener("keydown", onKey);
+      if (document.pointerLockElement === canvas) {
+        document.exitPointerLock?.();
+      }
     };
   }, []);
 
@@ -729,6 +766,7 @@ export default function SplitFocus() {
               stateRef.current = freshState(best);
               stateRef.current.status = "running";
               syncSnapRef.current();
+              canvasRef.current?.requestPointerLock?.();
             }}
             style={{
               position: "absolute",
@@ -1419,21 +1457,23 @@ function IdleScreen() {
           textShadow: "0 0 30px rgba(255,45,156,.4)",
         }}
       >
-        PRESS <span style={{ color: "#22e0ff" }}>SPACE</span> TO START
+        CLICK <span style={{ color: "#22e0ff" }}>TO START</span>
       </div>
       <div
         style={{
           marginTop: 20,
-          maxWidth: 520,
+          maxWidth: 560,
           color: "#b7b7c4",
           fontSize: 14,
           lineHeight: 1.55,
         }}
       >
-        Keep the crosshair inside the ring. Hit <kbd style={kbdStyle}>SPACE</kbd>{" "}
-        when a matching block crosses the line. Type the math answer — it
-        submits automatically the moment you enter the correct number. Rules
-        change every 15s.
+        Clicking locks the mouse to the play area so the drift can actually
+        pull the crosshair around. Keep it inside the ring. Hit{" "}
+        <kbd style={kbdStyle}>SPACE</kbd> when a matching block crosses the
+        line. Type the math answer — it submits automatically the moment you
+        enter the correct number. Rules change every ~20s. Press{" "}
+        <kbd style={kbdStyle}>Esc</kbd> to release the mouse.
       </div>
     </>
   );
