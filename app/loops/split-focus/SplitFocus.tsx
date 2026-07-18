@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 const CANVAS_W = 900;
-const CANVAS_H = 620;
+const CANVAS_H = 540;
 const RING_CX = CANVAS_W / 2;
-const RING_CY = CANVAS_H / 2 + 55;
+const RING_CY = CANVAS_H / 2;
 const RING_R = 230;
 const LINE_Y = RING_CY + 40;
 const LINE_WINDOW = 40;
@@ -725,6 +725,22 @@ export default function SplitFocus() {
 
       <div
         style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "stretch",
+          marginBottom: 12,
+        }}
+      >
+        <MathPanel math={snap.math} />
+        <RulePanel
+          rule={snap.ruleLabel}
+          timeLeft={snap.ruleIn}
+          flash={snap.ruleFlash}
+        />
+      </div>
+
+      <div
+        style={{
           position: "relative",
           border: "1px solid rgba(255,45,156,.25)",
           boxShadow: "0 0 40px rgba(255,45,156,.12)",
@@ -732,27 +748,6 @@ export default function SplitFocus() {
           overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: 10,
-            left: 12,
-            right: 12,
-            display: "flex",
-            gap: 12,
-            alignItems: "stretch",
-            zIndex: 3,
-            pointerEvents: "none",
-          }}
-        >
-          <MathPanel math={snap.math} />
-          <RulePanel
-            rule={snap.ruleLabel}
-            timeLeft={snap.ruleIn}
-            flash={snap.ruleFlash}
-          />
-        </div>
-
         <canvas ref={canvasRef} style={{ display: "block", cursor: "none" }} />
 
         <div
