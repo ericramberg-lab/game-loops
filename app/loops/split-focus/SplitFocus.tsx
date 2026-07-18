@@ -426,7 +426,6 @@ export default function SplitFocus() {
         g.stability = Math.min(100, g.stability + 14);
         g.goodFlash = 0.3;
         g.math.state = "correct";
-        g.math.hold = 0.7;
         addEffect(g.effects, {
           x: RING_CX,
           y: RING_CY - 140,
@@ -591,19 +590,16 @@ export default function SplitFocus() {
             g.math.hold = 0.55;
             g.math.input = String(g.math.a);
           }
+        } else if (g.math.state === "correct") {
+          g.math.timeLeft -= dt;
+          if (g.math.timeLeft <= 0) {
+            g.mathLevel += 0.35;
+            g.math = makeMath(g.mathLevel);
+          }
         } else {
           g.math.hold -= dt;
           if (g.math.hold <= 0) {
-            if (g.math.state === "correct") {
-              g.mathLevel += 0.35;
-              const leftover = Math.max(0, g.math.timeLeft);
-              const next = makeMath(g.mathLevel);
-              next.timeLeft = next.maxTime + leftover;
-              next.maxTime = next.maxTime + leftover;
-              g.math = next;
-            } else {
-              g.math = makeMath(g.mathLevel);
-            }
+            g.math = makeMath(g.mathLevel);
           }
         }
 
