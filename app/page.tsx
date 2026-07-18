@@ -500,7 +500,7 @@ export default function Home() {
                   </div>
                   <p
                     style={{
-                      margin: "8px 0 14px",
+                      margin: "8px 0 12px",
                       fontSize: 13,
                       lineHeight: 1.45,
                       color: "#9a9aa6",
@@ -509,6 +509,30 @@ export default function Home() {
                   >
                     {m.blurb}
                   </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 5,
+                      flexWrap: "wrap",
+                      marginBottom: 12,
+                    }}
+                  >
+                    {m.tags.map((t) => (
+                      <span
+                        key={t}
+                        style={{
+                          fontFamily: FONT_MONO,
+                          fontSize: 10,
+                          letterSpacing: ".06em",
+                          color: "#22e0ff",
+                          border: "1px solid rgba(34,224,255,.35)",
+                          padding: "2px 7px",
+                        }}
+                      >
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
                   <div
                     style={{
                       display: "flex",

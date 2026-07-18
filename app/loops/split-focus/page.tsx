@@ -44,7 +44,7 @@ export default function Page() {
           <p
             style={{
               maxWidth: 640,
-              margin: "12px 0 0",
+              margin: "12px 0 12px",
               color: "#b7b7c4",
               fontSize: 15,
               lineHeight: 1.55,
@@ -54,6 +54,23 @@ export default function Page() {
             right blocks, and solve the math before the meter drains. Miss any
             of them and stability drops.
           </p>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {["focus", "multitask", "reflex", "timing"].map((t) => (
+              <span
+                key={t}
+                style={{
+                  fontFamily: "var(--font-ibm-plex-mono), monospace",
+                  fontSize: 11,
+                  letterSpacing: ".06em",
+                  color: "#22e0ff",
+                  border: "1px solid rgba(34,224,255,.35)",
+                  padding: "3px 9px",
+                }}
+              >
+                #{t}
+              </span>
+            ))}
+          </div>
         </div>
         <SplitFocus />
       </div>

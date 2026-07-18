@@ -1,6 +1,26 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type Engine = "Unity" | "Unreal" | "Godot" | "Web";
 
+export type Tag =
+  | "lockpick"
+  | "safecrack"
+  | "hack"
+  | "fish"
+  | "reload"
+  | "pickpocket"
+  | "wire"
+  | "diffuse"
+  | "climb"
+  | "stealth"
+  | "timing"
+  | "reflex"
+  | "puzzle"
+  | "memory"
+  | "focus"
+  | "multitask"
+  | "precision"
+  | "patience";
+
 export type Mechanic = {
   name: string;
   slug: string;
@@ -9,8 +29,30 @@ export type Mechanic = {
   diff: Difficulty;
   price: string;
   preview: string;
+  tags: Tag[];
   badge?: "NEW" | "HOT";
 };
+
+export const ALL_TAGS: Tag[] = [
+  "lockpick",
+  "safecrack",
+  "hack",
+  "fish",
+  "reload",
+  "pickpocket",
+  "wire",
+  "diffuse",
+  "climb",
+  "stealth",
+  "timing",
+  "reflex",
+  "puzzle",
+  "memory",
+  "focus",
+  "multitask",
+  "precision",
+  "patience",
+];
 
 export const difficultyStyle: Record<
   Difficulty,
@@ -30,6 +72,7 @@ export const mechanics: Mechanic[] = [
     diff: "Medium",
     price: "$18",
     preview: "lockpick preview",
+    tags: ["lockpick", "timing", "precision"],
   },
   {
     name: "Safe Cracking",
@@ -39,6 +82,7 @@ export const mechanics: Mechanic[] = [
     diff: "Hard",
     price: "$24",
     preview: "safe dial preview",
+    tags: ["safecrack", "memory", "timing"],
     badge: "NEW",
   },
   {
@@ -49,6 +93,7 @@ export const mechanics: Mechanic[] = [
     diff: "Medium",
     price: "$16",
     preview: "circuit preview",
+    tags: ["hack", "puzzle", "focus"],
   },
   {
     name: "Fishing",
@@ -58,6 +103,7 @@ export const mechanics: Mechanic[] = [
     diff: "Easy",
     price: "$14",
     preview: "reel meter preview",
+    tags: ["fish", "timing", "patience"],
   },
   {
     name: "Wire Splicing",
@@ -67,6 +113,7 @@ export const mechanics: Mechanic[] = [
     diff: "Easy",
     price: "$12",
     preview: "wires preview",
+    tags: ["wire", "diffuse", "puzzle"],
   },
   {
     name: "Pickpocket",
@@ -76,6 +123,7 @@ export const mechanics: Mechanic[] = [
     diff: "Hard",
     price: "$20",
     preview: "grab QTE preview",
+    tags: ["pickpocket", "reflex", "stealth"],
     badge: "HOT",
   },
 ];
