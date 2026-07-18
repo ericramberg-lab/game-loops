@@ -82,6 +82,20 @@ export const mechanics: Mechanic[] = [
     href: "/loops/split-focus",
   },
   {
+    name: "Execute",
+    slug: "execute.loop",
+    blurb:
+      "Simon-says with a bomb-defuse twist. Only orders prefixed with EXECUTE count — everything else is a decoy.",
+    engines: ["Web"],
+    platforms: ["Desktop", "Mobile"],
+    diff: "Medium",
+    price: "FREE",
+    preview: "wire cut preview",
+    tags: ["diffuse", "wire", "focus", "reflex"],
+    badge: "LIVE",
+    href: "/loops/execute",
+  },
+  {
     name: "Lockpicking",
     slug: "lockpicking.loop",
     blurb: "Tension-and-pick tumbler with a moving sweet spot.",
