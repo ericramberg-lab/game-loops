@@ -105,7 +105,7 @@ const COLOR_LABEL: Record<ColorKey, string> = {
   A: "YELLOW",
 };
 const SHAPE_LABEL: Record<ShapeKey, string> = {
-  I: "BAR",
+  I: "LINE",
   S: "STEP",
   T: "PEAK",
   L: "HOOK",
@@ -374,44 +374,44 @@ export default function SplitFocus() {
     const tryPress = () => {
       const g = stateRef.current;
       if (g.status !== "running") return;
-      const inWindow = g.blocks.filter(
-        (b) => !b.consumed && Math.abs(b.y - LINE_Y) <= LINE_WINDOW,
-      );
-      const rulish = inWindow.filter((b) => g.rule.matches(b));
-      if (rulish.length === 0) {
+      const inWindow = g.blocks
+        .filter((b) => !b.consumed && Math.abs(b.y - LINE_Y) <= LINE_WINDOW)
+        .sort((a, b) => Math.abs(a.y - LINE_Y) - Math.abs(b.y - LINE_Y));
+      if (inWindow.length === 0) {
         g.stability -= 4;
         g.badFlash = 0.3;
         addEffect(g.effects, {
           x: g.cx,
           y: g.cy - 24,
           color: "#ff5e7a",
-          text: "-4 WRONG",
+          text: "-4 MISTIMED",
         });
         return;
       }
-      for (const b of rulish) {
-        b.consumed = true;
-        b.scored = true;
-        if (g.rule.mode === "press") {
-          g.score += 20;
-          g.stability = Math.min(100, g.stability + 5);
-          g.goodFlash = 0.25;
-          addEffect(g.effects, {
-            x: b.x,
-            y: b.y,
-            color: "#46f0a0",
-            text: "+20",
-          });
-        } else {
-          g.stability -= 8;
-          g.badFlash = 0.35;
-          addEffect(g.effects, {
-            x: b.x,
-            y: b.y,
-            color: "#ff5e7a",
-            text: "-8",
-          });
-        }
+      const b = inWindow[0]!;
+      const matches = g.rule.matches(b);
+      const shouldPress = g.rule.mode === "press" ? matches : !matches;
+      b.consumed = true;
+      b.scored = true;
+      if (shouldPress) {
+        g.score += 20;
+        g.stability = Math.min(100, g.stability + 5);
+        g.goodFlash = 0.25;
+        addEffect(g.effects, {
+          x: b.x,
+          y: b.y,
+          color: "#46f0a0",
+          text: "+20",
+        });
+      } else {
+        g.stability -= 6;
+        g.badFlash = 0.35;
+        addEffect(g.effects, {
+          x: b.x,
+          y: b.y,
+          color: "#ff5e7a",
+          text: "-6",
+        });
       }
     };
 
@@ -556,7 +556,9 @@ export default function SplitFocus() {
             prevY <= LINE_Y + LINE_WINDOW
           ) {
             const matches = g.rule.matches(b);
-            if (g.rule.mode === "press" && matches) {
+            const shouldPress =
+              g.rule.mode === "press" ? matches : !matches;
+            if (shouldPress) {
               g.stability -= 7;
               g.badFlash = Math.max(g.badFlash, 0.3);
               addEffect(g.effects, {
@@ -565,14 +567,14 @@ export default function SplitFocus() {
                 color: "#ff5e7a",
                 text: "-7 MISS",
               });
-            } else if (g.rule.mode === "skip" && matches) {
-              g.score += 12;
-              g.stability = Math.min(100, g.stability + 2);
+            } else {
+              g.score += 8;
+              g.stability = Math.min(100, g.stability + 1);
               addEffect(g.effects, {
                 x: b.x,
                 y: LINE_Y,
                 color: "#22e0ff",
-                text: "+12",
+                text: "+8",
                 ttl: 0.7,
               });
             }
@@ -1198,36 +1200,54 @@ function MathPanel({ math }: { math: MathQ }) {
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: isCorrect ? "center" : "space-between",
           gap: 14,
           margin: "6px 0 8px",
+          minHeight: 40,
         }}
       >
-        <span
-          style={{
-            fontFamily: "var(--font-chakra-petch), sans-serif",
-            fontWeight: 700,
-            fontSize: 28,
-            color: "#fff",
-            letterSpacing: ".04em",
-          }}
-        >
-          {math.q} =
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-chakra-petch), sans-serif",
-            fontWeight: 700,
-            fontSize: 28,
-            minWidth: 90,
-            textAlign: "right",
-            color: inputColor,
-            textShadow:
-              isCorrect || isWrong || math.input ? `0 0 14px ${inputColor}` : "none",
-          }}
-        >
-          {math.input || "___"}
-        </span>
+        {isCorrect ? (
+          <span
+            style={{
+              fontFamily: "var(--font-chakra-petch), sans-serif",
+              fontWeight: 700,
+              fontSize: 30,
+              color: "#46f0a0",
+              textShadow: "0 0 18px rgba(70,240,160,.7)",
+              letterSpacing: ".14em",
+            }}
+          >
+            ✓ SOLVED
+          </span>
+        ) : (
+          <>
+            <span
+              style={{
+                fontFamily: "var(--font-chakra-petch), sans-serif",
+                fontWeight: 700,
+                fontSize: 28,
+                color: "#fff",
+                letterSpacing: ".04em",
+              }}
+            >
+              {math.q} =
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-chakra-petch), sans-serif",
+                fontWeight: 700,
+                fontSize: 28,
+                minWidth: 90,
+                textAlign: "right",
+                color: inputColor,
+                textShadow:
+                  isWrong || math.input ? `0 0 14px ${inputColor}` : "none",
+              }}
+            >
+              {math.input || "___"}
+            </span>
+          </>
+        )}
       </div>
       <div
         style={{
