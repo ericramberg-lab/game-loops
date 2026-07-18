@@ -105,10 +105,10 @@ const COLOR_LABEL: Record<ColorKey, string> = {
   A: "AMBER",
 };
 const SHAPE_LABEL: Record<ShapeKey, string> = {
-  I: "LONG",
-  S: "S-BLOCK",
-  T: "T-BLOCK",
-  L: "L-BLOCK",
+  I: "BAR",
+  S: "STEP",
+  T: "PEAK",
+  L: "HOOK",
 };
 
 function pick<T>(arr: readonly T[]): T {
@@ -479,7 +479,12 @@ export default function SplitFocus() {
       }
       if (e.key >= "0" && e.key <= "9") {
         e.preventDefault();
-        if (g.math.input.length < 4) g.math.input += e.key;
+        if (g.math.input.length < 4) {
+          g.math.input += e.key;
+          if (parseInt(g.math.input, 10) === g.math.a) {
+            submitMath();
+          }
+        }
         return;
       }
     };
@@ -724,6 +729,34 @@ export default function SplitFocus() {
         style={{
           marginTop: 12,
           display: "flex",
+          gap: 20,
+          flexWrap: "wrap",
+          alignItems: "center",
+          fontFamily: "var(--font-ibm-plex-mono), monospace",
+          fontSize: 11,
+          letterSpacing: ".14em",
+          color: "#c3c3ce",
+          padding: "10px 14px",
+          border: "1px solid rgba(255,255,255,.08)",
+          background: "rgba(0,0,0,.35)",
+        }}
+      >
+        <span style={{ color: "#6a6a76" }}>SHAPES</span>
+        {(["I", "S", "T", "L"] as const).map((s) => (
+          <span
+            key={s}
+            style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
+          >
+            <ShapeIcon shape={s} />
+            {SHAPE_LABEL[s]}
+          </span>
+        ))}
+      </div>
+
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
           gap: 24,
           flexWrap: "wrap",
           fontFamily: "var(--font-ibm-plex-mono), monospace",
@@ -734,9 +767,34 @@ export default function SplitFocus() {
       >
         <span>◆ MOUSE — stay inside the ring</span>
         <span>◆ SPACE — trigger on matching block at the line</span>
-        <span>◆ 0-9 / ENTER — solve the math</span>
+        <span>◆ 0-9 — type the math answer (auto-submits when correct)</span>
       </div>
     </div>
+  );
+}
+
+function ShapeIcon({ shape }: { shape: ShapeKey }) {
+  const cells = shapeCells(shape);
+  const cellSize = 7;
+  const minX = Math.min(...cells.map((c) => c[0])) - 0.5;
+  const maxX = Math.max(...cells.map((c) => c[0])) + 0.5;
+  const minY = Math.min(...cells.map((c) => c[1])) - 0.5;
+  const maxY = Math.max(...cells.map((c) => c[1])) + 0.5;
+  const w = (maxX - minX) * cellSize;
+  const h = (maxY - minY) * cellSize;
+  return (
+    <svg width={w} height={h} style={{ display: "block" }}>
+      {cells.map(([dx, dy], i) => (
+        <rect
+          key={i}
+          x={(dx - minX - 0.5) * cellSize}
+          y={(dy - minY - 0.5) * cellSize}
+          width={cellSize - 1}
+          height={cellSize - 1}
+          fill="#c3c3ce"
+        />
+      ))}
+    </svg>
   );
 }
 
@@ -1242,8 +1300,9 @@ function IdleScreen() {
         }}
       >
         Keep the crosshair inside the ring. Hit <kbd style={kbdStyle}>SPACE</kbd>{" "}
-        when a matching block crosses the line. Type the math answer, submit
-        with <kbd style={kbdStyle}>ENTER</kbd>. Rules change every 15s.
+        when a matching block crosses the line. Type the math answer — it
+        submits automatically the moment you enter the correct number. Rules
+        change every 15s.
       </div>
     </>
   );
