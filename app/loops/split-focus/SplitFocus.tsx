@@ -45,6 +45,7 @@ type MathQ = {
   maxTime: number;
   state: "input" | "correct" | "wrong";
   hold: number;
+  partialLeft: number;
 };
 
 type Effect = {
@@ -221,6 +222,7 @@ function makeMath(level: number): MathQ {
     maxTime,
     state: "input",
     hold: 0,
+    partialLeft: 0,
   };
 }
 
@@ -338,6 +340,7 @@ const EMPTY_SNAP: Snapshot = {
     maxTime: 1,
     state: "input",
     hold: 0,
+    partialLeft: 0,
   },
   ruleLabel: "",
   ruleIn: 0,
@@ -421,36 +424,36 @@ export default function SplitFocus() {
       }
     };
 
-    const submitMath = () => {
+    const acceptMathCorrect = () => {
       const g = stateRef.current;
-      if (g.status !== "running") return;
-      if (g.math.state !== "input") return;
-      if (g.math.input === "") return;
-      const guess = parseInt(g.math.input, 10);
-      if (guess === g.math.a) {
-        g.score += 30;
-        g.goodFlash = 0.3;
-        g.math.state = "correct";
-        addEffect(g.effects, {
-          x: RING_CX,
-          y: RING_CY - 140,
-          color: "#46f0a0",
-          text: "+30 SOLVED",
-          ttl: 1.1,
-        });
-      } else {
-        g.stability -= 10;
-        g.badFlash = 0.35;
-        g.math.state = "wrong";
-        g.math.hold = 0.55;
-        addEffect(g.effects, {
-          x: RING_CX,
-          y: RING_CY - 140,
-          color: "#ff5e7a",
-          text: "-10 WRONG",
-          ttl: 1.0,
-        });
-      }
+      g.score += 30;
+      g.goodFlash = 0.3;
+      g.math.state = "correct";
+      g.math.partialLeft = 0;
+      addEffect(g.effects, {
+        x: RING_CX,
+        y: RING_CY - 140,
+        color: "#46f0a0",
+        text: "+30 SOLVED",
+        ttl: 1.1,
+      });
+    };
+
+    const failMath = (penalty: number, popupText: string) => {
+      const g = stateRef.current;
+      g.stability -= penalty;
+      g.badFlash = 0.35;
+      g.math.state = "wrong";
+      g.math.hold = 0.55;
+      g.math.input = "";
+      g.math.partialLeft = 0;
+      addEffect(g.effects, {
+        x: RING_CX,
+        y: RING_CY - 140,
+        color: "#ff5e7a",
+        text: popupText,
+        ttl: 1.0,
+      });
     };
 
     const onKey = (e: KeyboardEvent) => {
@@ -470,24 +473,26 @@ export default function SplitFocus() {
         tryPress();
         return;
       }
-      if (e.code === "Enter") {
-        e.preventDefault();
-        submitMath();
-        return;
-      }
       if (g.math.state !== "input") return;
       if (e.code === "Backspace") {
         e.preventDefault();
         g.math.input = g.math.input.slice(0, -1);
+        if (g.math.input.length === 0) g.math.partialLeft = 0;
         return;
       }
       if (e.key >= "0" && e.key <= "9") {
         e.preventDefault();
-        if (g.math.input.length < 4) {
-          g.math.input += e.key;
-          if (parseInt(g.math.input, 10) === g.math.a) {
-            submitMath();
-          }
+        if (g.math.input.length >= 4) return;
+        const answerStr = String(g.math.a);
+        const nextInput = g.math.input + e.key;
+        if (nextInput === answerStr) {
+          g.math.input = nextInput;
+          acceptMathCorrect();
+        } else if (answerStr.startsWith(nextInput)) {
+          g.math.input = nextInput;
+          g.math.partialLeft = 3;
+        } else {
+          failMath(8, "-8 WRONG");
         }
         return;
       }
@@ -598,12 +603,14 @@ export default function SplitFocus() {
 
         if (g.math.state === "input") {
           g.math.timeLeft -= dt;
-          if (g.math.timeLeft <= 0) {
-            g.stability -= 15;
-            g.badFlash = Math.max(g.badFlash, 0.35);
-            g.math.state = "wrong";
-            g.math.hold = 0.55;
-            g.math.input = String(g.math.a);
+          if (g.math.partialLeft > 0) {
+            g.math.partialLeft -= dt;
+            if (g.math.partialLeft <= 0 && g.math.input.length > 0) {
+              failMath(8, "-8 TOO SLOW");
+            }
+          }
+          if (g.math.state === "input" && g.math.timeLeft <= 0) {
+            failMath(12, "-12 TIMEOUT");
           }
         } else if (g.math.state === "correct") {
           g.math.timeLeft -= dt;
@@ -1228,7 +1235,7 @@ function MathPanel({ math }: { math: MathQ }) {
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: isCorrect ? "center" : "space-between",
+          justifyContent: isCorrect || isWrong ? "center" : "space-between",
           gap: 14,
           margin: "6px 0 8px",
           minHeight: 40,
@@ -1246,6 +1253,19 @@ function MathPanel({ math }: { math: MathQ }) {
             }}
           >
             ✓ SOLVED
+          </span>
+        ) : isWrong ? (
+          <span
+            style={{
+              fontFamily: "var(--font-chakra-petch), sans-serif",
+              fontWeight: 700,
+              fontSize: 30,
+              color: "#ff5e7a",
+              textShadow: "0 0 18px rgba(255,94,122,.75)",
+              letterSpacing: ".14em",
+            }}
+          >
+            ✗ WRONG
           </span>
         ) : (
           <>
@@ -1268,8 +1288,7 @@ function MathPanel({ math }: { math: MathQ }) {
                 minWidth: 90,
                 textAlign: "right",
                 color: inputColor,
-                textShadow:
-                  isWrong || math.input ? `0 0 14px ${inputColor}` : "none",
+                textShadow: math.input ? `0 0 14px ${inputColor}` : "none",
               }}
             >
               {math.input || "___"}
