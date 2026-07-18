@@ -516,15 +516,15 @@ export default function SplitFocus() {
 
         g.driftIn -= dt;
         if (g.driftIn <= 0) {
-          const strength = 160 + Math.min(g.elapsed * 1.5, 180);
+          const strength = 500 + Math.min(g.elapsed * 10, 500);
           const ang = Math.random() * Math.PI * 2;
           g.driftX = Math.cos(ang) * strength;
           g.driftY = Math.sin(ang) * strength;
-          g.driftIn = 0.45 + Math.random() * 0.5;
+          g.driftIn = 0.55 + Math.random() * 0.7;
         }
 
-        const k = 16;
-        const damp = 6;
+        const k = 4;
+        const damp = 3;
         const ax = k * (g.mouseX - g.cx) + g.driftX - damp * g.vx;
         const ay = k * (g.mouseY - g.cy) + g.driftY - damp * g.vy;
         g.vx += ax * dt;
