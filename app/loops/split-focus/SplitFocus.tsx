@@ -99,10 +99,10 @@ type GameState = {
 const SHAPES: ShapeKey[] = ["I", "S", "T", "L"];
 const COLOR_KEYS: ColorKey[] = ["M", "C", "G", "A"];
 const COLOR_LABEL: Record<ColorKey, string> = {
-  M: "MAGENTA",
-  C: "CYAN",
+  M: "PINK",
+  C: "BLUE",
   G: "GREEN",
-  A: "AMBER",
+  A: "YELLOW",
 };
 const SHAPE_LABEL: Record<ShapeKey, string> = {
   I: "BAR",
@@ -116,7 +116,7 @@ function pick<T>(arr: readonly T[]): T {
 }
 
 function makeRule(level: number): Rule {
-  if (level < 2) {
+  if (level < 3) {
     if (Math.random() < 0.5) {
       const s = pick(SHAPES);
       return {
@@ -132,7 +132,7 @@ function makeRule(level: number): Rule {
       matches: (b) => b.color === c,
     };
   }
-  if (level < 4) {
+  if (level < 6) {
     if (Math.random() < 0.5) {
       const s = pick(SHAPES);
       return {
@@ -163,19 +163,19 @@ function makeRule(level: number): Rule {
 }
 
 function makeMath(level: number): MathQ {
-  const maxTime = Math.max(3.5, 8 - level * 0.4);
+  const maxTime = Math.max(4.5, 10 - level * 0.35);
   let a: number, b: number, op: string, ans: number;
-  if (level < 1) {
+  if (level < 2) {
     a = 1 + Math.floor(Math.random() * 9);
     b = 1 + Math.floor(Math.random() * 9);
     op = "+";
     ans = a + b;
-  } else if (level < 2) {
+  } else if (level < 4) {
     a = 10 + Math.floor(Math.random() * 40);
     b = 1 + Math.floor(Math.random() * 9);
     op = "+";
     ans = a + b;
-  } else if (level < 3) {
+  } else if (level < 6) {
     if (Math.random() < 0.5) {
       a = 20 + Math.floor(Math.random() * 60);
       b = 1 + Math.floor(Math.random() * (a - 1));
@@ -187,7 +187,7 @@ function makeMath(level: number): MathQ {
       op = "+";
       ans = a + b;
     }
-  } else if (level < 4) {
+  } else if (level < 8) {
     a = 2 + Math.floor(Math.random() * 8);
     b = 2 + Math.floor(Math.random() * 8);
     op = "×";
@@ -239,7 +239,7 @@ function addEffect(
 }
 
 function makeBlock(id: number, level: number): Block {
-  const speed = 90 + level * 14;
+  const speed = 70 + level * 10;
   const marginX = 60;
   const x = RING_CX - RING_R + marginX + Math.random() * (2 * (RING_R - marginX));
   return {
@@ -274,12 +274,12 @@ function freshState(best: number): GameState {
     outOfRing: false,
 
     blocks: [],
-    spawnIn: 1.4,
+    spawnIn: 1.8,
     blockSeq: 0,
     blockLevel: 0,
 
     rule: makeRule(0),
-    ruleIn: 15,
+    ruleIn: 20,
     ruleLevel: 0,
 
     math: makeMath(0),
@@ -379,13 +379,13 @@ export default function SplitFocus() {
       );
       const rulish = inWindow.filter((b) => g.rule.matches(b));
       if (rulish.length === 0) {
-        g.stability -= 6;
+        g.stability -= 4;
         g.badFlash = 0.3;
         addEffect(g.effects, {
           x: g.cx,
           y: g.cy - 24,
           color: "#ff5e7a",
-          text: "-6 WRONG",
+          text: "-4 WRONG",
         });
         return;
       }
@@ -394,7 +394,7 @@ export default function SplitFocus() {
         b.scored = true;
         if (g.rule.mode === "press") {
           g.score += 20;
-          g.stability = Math.min(100, g.stability + 4);
+          g.stability = Math.min(100, g.stability + 5);
           g.goodFlash = 0.25;
           addEffect(g.effects, {
             x: b.x,
@@ -403,13 +403,13 @@ export default function SplitFocus() {
             text: "+20",
           });
         } else {
-          g.stability -= 12;
+          g.stability -= 8;
           g.badFlash = 0.35;
           addEffect(g.effects, {
             x: b.x,
             y: b.y,
             color: "#ff5e7a",
-            text: "-12",
+            text: "-8",
           });
         }
       }
@@ -504,11 +504,11 @@ export default function SplitFocus() {
 
         g.driftIn -= dt;
         if (g.driftIn <= 0) {
-          const strength = 220 + Math.min(g.elapsed * 4, 260);
+          const strength = 160 + Math.min(g.elapsed * 1.5, 180);
           const ang = Math.random() * Math.PI * 2;
           g.driftX = Math.cos(ang) * strength;
           g.driftY = Math.sin(ang) * strength;
-          g.driftIn = 0.35 + Math.random() * 0.5;
+          g.driftIn = 0.45 + Math.random() * 0.5;
         }
 
         const k = 16;
@@ -535,15 +535,15 @@ export default function SplitFocus() {
         if (g.ruleIn <= 0) {
           g.ruleLevel += 1;
           g.rule = makeRule(g.ruleLevel);
-          g.ruleIn = Math.max(9, 15 - g.ruleLevel * 0.5);
+          g.ruleIn = Math.max(12, 20 - g.ruleLevel * 0.4);
         }
 
         g.spawnIn -= dt;
         if (g.spawnIn <= 0) {
           g.blockSeq += 1;
-          g.blockLevel = g.elapsed / 15;
+          g.blockLevel = g.elapsed / 22;
           g.blocks.push(makeBlock(g.blockSeq, g.blockLevel));
-          g.spawnIn = Math.max(0.55, 1.5 - g.blockLevel * 0.12);
+          g.spawnIn = Math.max(0.75, 1.8 - g.blockLevel * 0.1);
         }
 
         for (const b of g.blocks) {
@@ -557,13 +557,13 @@ export default function SplitFocus() {
           ) {
             const matches = g.rule.matches(b);
             if (g.rule.mode === "press" && matches) {
-              g.stability -= 10;
+              g.stability -= 7;
               g.badFlash = Math.max(g.badFlash, 0.3);
               addEffect(g.effects, {
                 x: b.x,
                 y: LINE_Y,
                 color: "#ff5e7a",
-                text: "-10 MISS",
+                text: "-7 MISS",
               });
             } else if (g.rule.mode === "skip" && matches) {
               g.score += 12;
@@ -593,7 +593,7 @@ export default function SplitFocus() {
         } else if (g.math.state === "correct") {
           g.math.timeLeft -= dt;
           if (g.math.timeLeft <= 0) {
-            g.mathLevel += 0.35;
+            g.mathLevel += 0.22;
             g.math = makeMath(g.mathLevel);
           }
         } else {
@@ -732,29 +732,68 @@ export default function SplitFocus() {
       <div
         style={{
           marginTop: 12,
-          display: "flex",
-          gap: 20,
-          flexWrap: "wrap",
-          alignItems: "center",
-          fontFamily: "var(--font-ibm-plex-mono), monospace",
-          fontSize: 11,
-          letterSpacing: ".14em",
-          color: "#c3c3ce",
           padding: "10px 14px",
           border: "1px solid rgba(255,255,255,.08)",
           background: "rgba(0,0,0,.35)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
         }}
       >
-        <span style={{ color: "#6a6a76" }}>SHAPES</span>
-        {(["I", "S", "T", "L"] as const).map((s) => (
-          <span
-            key={s}
-            style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
-          >
-            <ShapeIcon shape={s} />
-            {SHAPE_LABEL[s]}
-          </span>
-        ))}
+        <div
+          style={{
+            display: "flex",
+            gap: 20,
+            flexWrap: "wrap",
+            alignItems: "center",
+            fontFamily: "var(--font-ibm-plex-mono), monospace",
+            fontSize: 11,
+            letterSpacing: ".14em",
+            color: "#c3c3ce",
+          }}
+        >
+          <span style={{ color: "#6a6a76", minWidth: 60 }}>SHAPES</span>
+          {(["I", "S", "T", "L"] as const).map((s) => (
+            <span
+              key={s}
+              style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
+            >
+              <ShapeIcon shape={s} />
+              {SHAPE_LABEL[s]}
+            </span>
+          ))}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 20,
+            flexWrap: "wrap",
+            alignItems: "center",
+            fontFamily: "var(--font-ibm-plex-mono), monospace",
+            fontSize: 11,
+            letterSpacing: ".14em",
+            color: "#c3c3ce",
+          }}
+        >
+          <span style={{ color: "#6a6a76", minWidth: 60 }}>COLORS</span>
+          {(["M", "C", "G", "A"] as const).map((c) => (
+            <span
+              key={c}
+              style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  background: COLORS[c],
+                  boxShadow: `0 0 8px ${COLORS[c]}88`,
+                  display: "inline-block",
+                }}
+              />
+              {COLOR_LABEL[c]}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div
