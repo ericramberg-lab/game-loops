@@ -402,7 +402,6 @@ export default function SplitFocus() {
       b.scored = true;
       if (shouldPress) {
         g.score += 20;
-        g.stability = Math.min(100, g.stability + 5);
         g.goodFlash = 0.25;
         addEffect(g.effects, {
           x: b.x,
@@ -430,14 +429,13 @@ export default function SplitFocus() {
       const guess = parseInt(g.math.input, 10);
       if (guess === g.math.a) {
         g.score += 30;
-        g.stability = Math.min(100, g.stability + 14);
         g.goodFlash = 0.3;
         g.math.state = "correct";
         addEffect(g.effects, {
           x: RING_CX,
           y: RING_CY - 140,
           color: "#46f0a0",
-          text: "+14 SOLVED",
+          text: "+30 SOLVED",
           ttl: 1.1,
         });
       } else {
@@ -585,7 +583,6 @@ export default function SplitFocus() {
               });
             } else {
               g.score += 8;
-              g.stability = Math.min(100, g.stability + 1);
               addEffect(g.effects, {
                 x: b.x,
                 y: LINE_Y,
@@ -625,7 +622,7 @@ export default function SplitFocus() {
           eff.age += dt;
           eff.y += eff.vy * dt;
           eff.vy *= 1 - dt * 1.4;
-          eff.ringR += 120 * dt;
+          eff.ringR += 55 * dt;
         }
         g.effects = g.effects.filter((eff) => eff.age < eff.ttl);
 
@@ -961,13 +958,14 @@ function draw(ctx: CanvasRenderingContext2D, g: GameState) {
   for (const eff of g.effects) {
     const life = 1 - eff.age / eff.ttl;
     ctx.save();
-    ctx.globalAlpha = Math.min(1, life * 1.5);
+    ctx.globalAlpha = Math.min(1, life * 0.55);
     ctx.strokeStyle = eff.color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.arc(eff.x, eff.y + eff.age * 30, eff.ringR, 0, Math.PI * 2);
     ctx.stroke();
 
+    ctx.globalAlpha = Math.min(1, life * 1.5);
     ctx.font = '700 18px "Chakra Petch", sans-serif';
     ctx.textAlign = "center";
     ctx.fillStyle = eff.color;
