@@ -74,6 +74,8 @@ type GameState = {
   mouseY: number;
   driftX: number;
   driftY: number;
+  driftTargetX: number;
+  driftTargetY: number;
   driftIn: number;
   outOfRing: boolean;
 
@@ -274,6 +276,8 @@ function freshState(best: number): GameState {
     mouseY: RING_CY,
     driftX: 0,
     driftY: 0,
+    driftTargetX: 0,
+    driftTargetY: 0,
     driftIn: 0.4,
     outOfRing: false,
 
@@ -531,12 +535,15 @@ export default function SplitFocus() {
 
         g.driftIn -= dt;
         if (g.driftIn <= 0) {
-          const strength = 190 + Math.min(g.elapsed * 10, 600);
+          const strength = 160 + Math.min(g.elapsed * 10, 640);
           const ang = Math.random() * Math.PI * 2;
-          g.driftX = Math.cos(ang) * strength;
-          g.driftY = Math.sin(ang) * strength;
-          g.driftIn = 0.55 + Math.random() * 0.7;
+          g.driftTargetX = Math.cos(ang) * strength;
+          g.driftTargetY = Math.sin(ang) * strength;
+          g.driftIn = 1.6 + Math.random() * 1.4;
         }
+        const driftLerp = 1 - Math.exp(-1.4 * dt);
+        g.driftX += (g.driftTargetX - g.driftX) * driftLerp;
+        g.driftY += (g.driftTargetY - g.driftY) * driftLerp;
 
         const locked = document.pointerLockElement === canvas;
         const damp = locked ? 3 : 3;
