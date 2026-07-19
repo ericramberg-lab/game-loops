@@ -56,7 +56,7 @@ export default function Page() {
             little and set pins drop. Spool pins fake a set to trick you.
           </p>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {["lockpick", "precision", "focus", "timing"].map((t) => (
+            {["lockpick", "precision", "focus", "timing", "haptic"].map((t) => (
               <span
                 key={t}
                 style={{

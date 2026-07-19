@@ -20,7 +20,8 @@ export type Tag =
   | "focus"
   | "multitask"
   | "precision"
-  | "patience";
+  | "patience"
+  | "haptic";
 
 export type Mechanic = {
   name: string;
@@ -55,6 +56,7 @@ export const ALL_TAGS: Tag[] = [
   "multitask",
   "precision",
   "patience",
+  "haptic",
 ];
 
 export const difficultyStyle: Record<
@@ -105,7 +107,7 @@ export const mechanics: Mechanic[] = [
     diff: "Hard",
     price: "FREE",
     preview: "pin stack preview",
-    tags: ["lockpick", "precision", "focus", "timing"],
+    tags: ["lockpick", "precision", "focus", "timing", "haptic"],
     badge: "LIVE",
     href: "/loops/feel-the-lock",
   },
