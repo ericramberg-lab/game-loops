@@ -33,6 +33,7 @@ type GameState = {
   maxTime: number;
   result: Result | null;
   revealAt: number;
+  noActionStreak: number;
 };
 
 function pickOne<T>(arr: readonly T[]): T {
@@ -179,11 +180,34 @@ function targetIdsFor(t: Template, wires: Wire[]): Set<number> {
   }
 }
 
-function makeCommand(round: number, wires: Wire[]): Command {
+function makeCommand(
+  round: number,
+  wires: Wire[],
+  forceAction: boolean,
+): Command {
+  const colorsPresent = Array.from(new Set(wires.map((w) => w.color)));
+
+  if (forceAction) {
+    let template = pickTemplate(round, wires);
+    let targets = targetIdsFor(template, wires);
+    for (let i = 0; i < 8 && (template.kind === "nothing" || targets.size === 0); i++) {
+      template = pickTemplate(round, wires);
+      targets = targetIdsFor(template, wires);
+    }
+    if (template.kind === "nothing" || targets.size === 0) {
+      template = { kind: "color", c: pickOne(colorsPresent) };
+      targets = targetIdsFor(template, wires);
+    }
+    return {
+      text: `EXECUTE ${templateToText(template)}`,
+      hasExecute: true,
+      targets,
+    };
+  }
+
   let template = pickTemplate(round, wires);
   const wantsExecute = Math.random() < 0.6;
   if (!wantsExecute && template.kind === "nothing") {
-    const colorsPresent = Array.from(new Set(wires.map((w) => w.color)));
     template = { kind: "color", c: pickOne(colorsPresent) };
   }
   const text = templateToText(template);
@@ -198,8 +222,10 @@ function makeCommand(round: number, wires: Wire[]): Command {
 function startRound(prev: GameState, nextRound: number): GameState {
   const startId = (prev.wires.at(-1)?.id ?? 0) + 1;
   const wires = makeWires(nextRound, startId);
-  const command = makeCommand(nextRound, wires);
+  const forceAction = prev.noActionStreak >= 2;
+  const command = makeCommand(nextRound, wires, forceAction);
   const maxTime = roundTime(nextRound);
+  const isNoAction = command.targets.size === 0;
   return {
     ...prev,
     status: "playing",
@@ -210,6 +236,7 @@ function startRound(prev: GameState, nextRound: number): GameState {
     maxTime,
     result: null,
     revealAt: 0,
+    noActionStreak: isNoAction ? prev.noActionStreak + 1 : 0,
   };
 }
 
@@ -234,6 +261,7 @@ function freshState(best: number): GameState {
     maxTime: 1,
     result: null,
     revealAt: 0,
+    noActionStreak: 0,
   };
 }
 
