@@ -96,6 +96,20 @@ export const mechanics: Mechanic[] = [
     href: "/loops/execute",
   },
   {
+    name: "Feel the Lock",
+    slug: "feel-the-lock.loop",
+    blurb:
+      "A tactile lockpick sim. Feel for the binding pin through friction and sound, balance tension, avoid oversetting.",
+    engines: ["Web"],
+    platforms: ["Desktop", "Mobile"],
+    diff: "Hard",
+    price: "FREE",
+    preview: "pin stack preview",
+    tags: ["lockpick", "precision", "focus", "timing"],
+    badge: "LIVE",
+    href: "/loops/feel-the-lock",
+  },
+  {
     name: "Lockpicking",
     slug: "lockpicking.loop",
     blurb: "Tension-and-pick tumbler with a moving sweet spot.",
