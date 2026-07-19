@@ -18,8 +18,10 @@ const CANVAS_H = 480;
 const HOUSING_TOP = 60;
 const SHEAR_Y = 250;
 const CYL_BOTTOM = 400;
-const PIN_LEFT = 200;
-const PIN_RIGHT = 700;
+const PIN_LEFT = 160;
+const PIN_RIGHT = 640;
+
+const TOUCH_TENSION_X = 700;
 
 const COLORS = {
   bgTop: "#0c0716",
@@ -325,7 +327,7 @@ export default function FeelTheLock() {
       for (const t of Array.from(e.changedTouches)) {
         const cx = ((t.clientX - rect.left) / rect.width) * CANVAS_W;
         const cy = ((t.clientY - rect.top) / rect.height) * CANVAS_H;
-        const role: "pick" | "tension" = cx < CANVAS_W * 0.7 ? "pick" : "tension";
+        const role: "pick" | "tension" = cx < TOUCH_TENSION_X ? "pick" : "tension";
         activeTouches.set(t.identifier, { role });
         if (role === "pick") {
           const st = sessionRef.current.state;
@@ -447,6 +449,7 @@ export default function FeelTheLock() {
         drawHeightGuides(ctx, state, pinXFor);
       }
 
+      drawTouchTensionZone(ctx, state);
       drawSeed(ctx, state.config.seed, state.config.difficulty);
 
       ctx.restore();
@@ -717,6 +720,63 @@ function drawHeightGuides(
     ctx.stroke();
     ctx.setLineDash([]);
   }
+}
+
+function drawTouchTensionZone(
+  ctx: CanvasRenderingContext2D,
+  state: LockState,
+) {
+  const x = TOUCH_TENSION_X;
+  const w = CANVAS_W - x;
+  const active = state.tension > 0.02;
+  ctx.save();
+  ctx.fillStyle = active
+    ? "rgba(255,45,156,.09)"
+    : "rgba(34,224,255,.045)";
+  ctx.fillRect(x, 0, w, CANVAS_H);
+  ctx.strokeStyle = active
+    ? "rgba(255,45,156,.35)"
+    : "rgba(34,224,255,.22)";
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, 0);
+  ctx.lineTo(x, CANVAS_H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.font = "600 11px 'IBM Plex Mono', monospace";
+  ctx.fillStyle = active ? "rgba(255,45,156,.85)" : "rgba(34,224,255,.7)";
+  ctx.textAlign = "center";
+  ctx.fillText("TENSION", x + w / 2, 24);
+  ctx.font = "10px 'IBM Plex Mono', monospace";
+  ctx.fillStyle = "rgba(255,255,255,.35)";
+  ctx.fillText("HOLD / TAP", x + w / 2, 40);
+  ctx.fillText("SPACE ⌷", x + w / 2, 54);
+
+  const meterX = x + w / 2 - 6;
+  const meterY = 90;
+  const meterH = CANVAS_H - 160;
+  ctx.strokeStyle = "rgba(255,255,255,.15)";
+  ctx.strokeRect(meterX, meterY, 12, meterH);
+  const safeY1 = meterY + (1 - state.config.safeTensionMax) * meterH;
+  const safeY2 = meterY + (1 - state.config.safeTensionMin) * meterH;
+  ctx.fillStyle = "rgba(70,240,160,.22)";
+  ctx.fillRect(meterX, safeY1, 12, safeY2 - safeY1);
+  const fillH = state.tension * meterH;
+  const fillY = meterY + meterH - fillH;
+  const tCol =
+    state.tension > state.config.safeTensionMax
+      ? "#ff5e7a"
+      : state.tension < state.config.safeTensionMin && state.tension > 0
+        ? "#ffcf5c"
+        : state.tension > 0
+          ? "#22e0ff"
+          : "rgba(255,255,255,.3)";
+  ctx.fillStyle = tCol;
+  ctx.fillRect(meterX, fillY, 12, fillH);
+  ctx.textAlign = "left";
+  ctx.restore();
 }
 
 function drawSeed(
