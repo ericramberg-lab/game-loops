@@ -15,11 +15,12 @@ import { LockAudio } from "./audio";
 const CANVAS_W = 900;
 const CANVAS_H = 480;
 
-const HOUSING_TOP = 60;
-const SHEAR_Y = 250;
-const CYL_BOTTOM = 400;
-const PIN_LEFT = 160;
-const PIN_RIGHT = 640;
+const HOUSING_TOP = 70;
+const SHEAR_Y = 290;
+const CYL_BOTTOM = 360;
+const PIN_LEFT = 130;
+const PIN_RIGHT = 620;
+const TUBE_HALF_W = 28;
 
 const TOUCH_TENSION_X = 700;
 
@@ -408,48 +409,46 @@ export default function FeelTheLock() {
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-      ctx.fillStyle = COLORS.housing;
-      ctx.fillRect(120, HOUSING_TOP, CANVAS_W - 240, 260);
+      const rot = state.cylinderRotation * 0.3;
+      const cylTop = SHEAR_Y;
+      const cylX = 110;
+      const cylW = TOUCH_TENSION_X - cylX - 20;
 
-      const rot = state.cylinderRotation * 0.35 + (state.tension * 0.06);
       ctx.save();
-      ctx.translate((PIN_LEFT + PIN_RIGHT) / 2, SHEAR_Y);
-      ctx.rotate(rot * 0.4);
-      ctx.translate(-(PIN_LEFT + PIN_RIGHT) / 2, -SHEAR_Y);
+      ctx.translate(cylX + cylW / 2, cylTop + (CYL_BOTTOM - cylTop) / 2);
+      ctx.rotate(rot * 0.15);
+      ctx.translate(-(cylX + cylW / 2), -(cylTop + (CYL_BOTTOM - cylTop) / 2));
 
       ctx.fillStyle = COLORS.cyl;
-      ctx.fillRect(140, SHEAR_Y - 12, CANVAS_W - 280, CYL_BOTTOM - SHEAR_Y + 12);
+      ctx.fillRect(cylX, cylTop, cylW, CYL_BOTTOM - cylTop);
       ctx.strokeStyle = COLORS.cylEdge;
       ctx.lineWidth = 1;
-      ctx.strokeRect(140, SHEAR_Y - 12, CANVAS_W - 280, CYL_BOTTOM - SHEAR_Y + 12);
+      ctx.strokeRect(cylX, cylTop, cylW, CYL_BOTTOM - cylTop);
 
-      ctx.strokeStyle = COLORS.shear;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = "rgba(34,224,255,.7)";
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(140, SHEAR_Y);
-      ctx.lineTo(CANVAS_W - 140, SHEAR_Y);
+      ctx.moveTo(cylX, cylTop);
+      ctx.lineTo(cylX + cylW, cylTop);
       ctx.stroke();
-      ctx.setLineDash([]);
+
+      ctx.font = "9px 'IBM Plex Mono', monospace";
+      ctx.fillStyle = "rgba(34,224,255,.5)";
+      ctx.textAlign = "left";
+      ctx.fillText("SHEAR LINE", cylX + 6, cylTop - 6);
+
+      ctx.restore();
 
       for (const pin of state.pins) {
         drawPin(ctx, state, pin, pinXFor(state, pin.id), now);
       }
 
-      ctx.restore();
-
       const pickX = pinXFor(state, state.pickPos);
-      const pickY = SHEAR_Y - state.pickHeight * (SHEAR_Y - HOUSING_TOP - 20);
+      const pickY = SHEAR_Y - state.pickHeight * (SHEAR_Y - HOUSING_TOP - 10);
       drawPick(ctx, pickX, pickY, state.pickStress);
 
-      drawTensionWrench(ctx, state);
-      drawStressAndTension(ctx, state);
-
-      if (state.config.showHeightGuides) {
-        drawHeightGuides(ctx, state, pinXFor);
-      }
-
       drawTouchTensionZone(ctx, state);
+      drawHint(ctx, state, now);
       drawSeed(ctx, state.config.seed, state.config.difficulty);
 
       ctx.restore();
@@ -564,56 +563,93 @@ function drawPin(
   x: number,
   now: number,
 ) {
-  const halfW = 14;
-  const springTop = HOUSING_TOP + 8;
-  const driverTop = HOUSING_TOP + 60;
-  const keyBottom = CYL_BOTTOM - 20;
-
-  const heightPx = pin.currentHeight * (keyBottom - SHEAR_Y);
-  const keyTop = keyBottom - heightPx - 20;
-
-  const driverBottom = keyTop - 2;
-  const springCompress = 1 - Math.min(1, (driverBottom - driverTop) / (SHEAR_Y - driverTop));
-
-  ctx.strokeStyle = COLORS.spring;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  const springCount = 5;
-  const springHeight = Math.max(6, (driverBottom - springTop) - springCompress * 10);
-  for (let i = 0; i <= springCount * 2; i++) {
-    const t = i / (springCount * 2);
-    const y = springTop + t * springHeight;
-    const sx = x + (i % 2 === 0 ? -6 : 6);
-    if (i === 0) ctx.moveTo(sx, y);
-    else ctx.lineTo(sx, y);
-  }
-  ctx.stroke();
-
-  ctx.fillStyle = COLORS.pinDriver;
-  ctx.fillRect(x - halfW, driverBottom - Math.max(0, driverBottom - driverTop), halfW * 2, Math.max(0, driverBottom - driverTop));
-
-  let keyColor: string = COLORS.pinKey;
   const bindingId = findBindingPinIdVisual(state);
-  if (pin.isSet) keyColor = COLORS.pinKeySet;
-  else if (pin.isOverset) keyColor = COLORS.pinKeyOver;
-  else if (pin.falseSet) keyColor = COLORS.pinKeyFalse;
-  else if (pin.id === bindingId && state.config.showBindingPinHint) keyColor = COLORS.pinKeyBind;
+  const isBinding = pin.id === bindingId;
+  const bindingHint = isBinding && state.config.showBindingPinHint && !pin.isSet;
 
-  ctx.fillStyle = keyColor;
-  ctx.fillRect(x - halfW, keyTop, halfW * 2, keyBottom - keyTop);
+  const tubeTop = HOUSING_TOP;
+  const tubeBottom = SHEAR_Y - 2;
+  const tubeHeight = tubeBottom - tubeTop;
 
-  ctx.fillStyle = "rgba(255,255,255,.12)";
-  ctx.fillRect(x - halfW, keyTop, 3, keyBottom - keyTop);
+  ctx.fillStyle = bindingHint
+    ? "rgba(255,207,92,.05)"
+    : "rgba(255,255,255,.02)";
+  ctx.fillRect(x - TUBE_HALF_W, tubeTop, TUBE_HALF_W * 2, tubeHeight);
+  ctx.strokeStyle = bindingHint
+    ? `rgba(255,207,92,${0.35 + 0.25 * Math.sin(now / 260)})`
+    : "rgba(255,255,255,.1)";
+  ctx.lineWidth = bindingHint ? 2 : 1;
+  ctx.strokeRect(x - TUBE_HALF_W, tubeTop, TUBE_HALF_W * 2, tubeHeight);
+
+  if (state.config.showHeightGuides && !pin.isSet) {
+    const targetY = tubeBottom - pin.targetHeight * tubeHeight;
+    ctx.strokeStyle = "rgba(70,240,160,.55)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x - TUBE_HALF_W - 6, targetY);
+    ctx.lineTo(x + TUBE_HALF_W + 6, targetY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = "9px 'IBM Plex Mono', monospace";
+    ctx.fillStyle = "rgba(70,240,160,.55)";
+    ctx.textAlign = "left";
+    ctx.fillText("TARGET", x + TUBE_HALF_W + 8, targetY - 3);
+  }
+
+  let color: string = COLORS.pinKey;
+  if (pin.isSet) color = COLORS.pinKeySet;
+  else if (pin.isOverset) color = COLORS.pinKeyOver;
+  else if (pin.falseSet) color = COLORS.pinKeyFalse;
+  else if (bindingHint) color = COLORS.pinKeyBind;
+
+  const pinTop = tubeBottom - pin.currentHeight * tubeHeight;
+  ctx.fillStyle = color;
+  ctx.fillRect(x - TUBE_HALF_W + 4, pinTop, TUBE_HALF_W * 2 - 8, tubeBottom - pinTop);
+
+  ctx.fillStyle = "rgba(255,255,255,.18)";
+  ctx.fillRect(x - TUBE_HALF_W + 4, pinTop, 3, tubeBottom - pinTop);
+
+  if (bindingHint) {
+    const glow = 0.6 + 0.3 * Math.sin(now / 220);
+    ctx.font = "700 12px 'IBM Plex Mono', monospace";
+    ctx.fillStyle = `rgba(255,207,92,${glow})`;
+    ctx.textAlign = "center";
+    ctx.fillText("▼ LIFT", x, tubeTop - 8);
+  }
+
+  if (pin.type === "spool" && !pin.isSet && state.config.difficulty !== "hard") {
+    ctx.font = "8px 'IBM Plex Mono', monospace";
+    ctx.fillStyle = "rgba(34,224,255,.55)";
+    ctx.textAlign = "center";
+    ctx.fillText("SPOOL", x, tubeTop - 22);
+  }
+
+  if (pin.isOverset) {
+    ctx.font = "600 10px 'IBM Plex Mono', monospace";
+    ctx.fillStyle = "#ff5e7a";
+    ctx.textAlign = "center";
+    ctx.fillText("!", x, tubeTop - 8);
+  }
 
   if (pin.isSet) {
-    const pulse = 0.7 + 0.3 * Math.sin(now / 200 + pin.id);
-    ctx.strokeStyle = `rgba(70,240,160,${pulse * 0.7})`;
+    const pulse = 0.35 + 0.15 * Math.sin(now / 220 + pin.id);
+    ctx.strokeStyle = `rgba(70,240,160,${pulse})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(x - halfW - 4, SHEAR_Y);
-    ctx.lineTo(x + halfW + 4, SHEAR_Y);
+    ctx.moveTo(x - TUBE_HALF_W - 4, tubeBottom);
+    ctx.lineTo(x + TUBE_HALF_W + 4, tubeBottom);
     ctx.stroke();
   }
+
+  ctx.font = "10px 'IBM Plex Mono', monospace";
+  ctx.fillStyle = pin.isSet
+    ? "#46f0a0"
+    : bindingHint
+      ? "#ffcf5c"
+      : "rgba(255,255,255,.35)";
+  ctx.textAlign = "center";
+  ctx.fillText(`${pin.id + 1}`, x, SHEAR_Y + 16);
 }
 
 function findBindingPinIdVisual(state: LockState): number | null {
@@ -629,97 +665,123 @@ function drawPick(
   y: number,
   stress: number,
 ) {
-  const flex = stress * 6;
+  const stressed = stress > 0.6;
+  const color = stressed ? "#ff5e7a" : COLORS.pick;
+
   ctx.save();
-  ctx.strokeStyle = COLORS.pick;
+  ctx.strokeStyle = "rgba(230,212,168,.35)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath();
+  ctx.moveTo(x, y + 8);
+  ctx.lineTo(x, CYL_BOTTOM + 10);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - 6, y + 12);
+  ctx.lineTo(x + 6, y + 12);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(CANVAS_W - 30, CYL_BOTTOM + 30);
-  ctx.quadraticCurveTo(CANVAS_W / 2, CYL_BOTTOM + 40 + flex, x, y);
+  ctx.moveTo(x, y + 12);
+  ctx.lineTo(x, CYL_BOTTOM + 40);
   ctx.stroke();
-  ctx.fillStyle = stress > 0.6 ? COLORS.wrenchStress : COLORS.pick;
-  ctx.beginPath();
-  ctx.arc(x, y, 4, 0, Math.PI * 2);
-  ctx.fill();
+
+  ctx.font = "9px 'IBM Plex Mono', monospace";
+  ctx.fillStyle = stressed ? "#ff5e7a" : "rgba(230,212,168,.65)";
+  ctx.textAlign = "center";
+  ctx.fillText("PICK", x, CYL_BOTTOM + 54);
+
+  const stressBarW = 60;
+  const stressBarY = CYL_BOTTOM + 64;
+  ctx.strokeStyle = "rgba(255,255,255,.15)";
+  ctx.strokeRect(x - stressBarW / 2, stressBarY, stressBarW, 4);
+  const stressCol =
+    stress > 0.7 ? "#ff5e7a" : stress > 0.35 ? "#ffcf5c" : "#46f0a0";
+  ctx.fillStyle = stressCol;
+  ctx.fillRect(x - stressBarW / 2, stressBarY, stressBarW * stress, 4);
   ctx.restore();
 }
 
-function drawTensionWrench(ctx: CanvasRenderingContext2D, state: LockState) {
-  const tensionRot = state.tension * 0.25;
-  ctx.save();
-  ctx.translate(160, CYL_BOTTOM + 8);
-  ctx.rotate(tensionRot);
-  ctx.fillStyle = state.tension > state.config.safeTensionMax
-    ? COLORS.wrenchStress
-    : COLORS.wrench;
-  ctx.fillRect(-50, -6, 80, 8);
-  ctx.fillStyle = "rgba(0,0,0,.3)";
-  ctx.fillRect(-50, -2, 80, 2);
-  ctx.restore();
-}
-
-function drawStressAndTension(ctx: CanvasRenderingContext2D, state: LockState) {
-  const barW = 160;
-  const barH = 8;
-  const startX = 40;
-  const y = CANVAS_H - 60;
-  ctx.font = "10px 'IBM Plex Mono', monospace";
-  ctx.textBaseline = "top";
-  ctx.fillStyle = "#6a6a76";
-  ctx.fillText("TENSION", startX, y - 14);
-  ctx.strokeStyle = "rgba(255,255,255,.15)";
-  ctx.strokeRect(startX, y, barW, barH);
-  const safeX1 = startX + state.config.safeTensionMin * barW;
-  const safeX2 = startX + state.config.safeTensionMax * barW;
-  ctx.fillStyle = "rgba(70,240,160,.18)";
-  ctx.fillRect(safeX1, y, safeX2 - safeX1, barH);
-  const tCol =
-    state.tension > state.config.safeTensionMax
-      ? "#ff5e7a"
-      : state.tension < state.config.safeTensionMin
-        ? "#ffcf5c"
-        : "#22e0ff";
-  ctx.fillStyle = tCol;
-  ctx.fillRect(startX, y, state.tension * barW, barH);
-
-  const stressX = startX + barW + 40;
-  ctx.fillStyle = "#6a6a76";
-  ctx.fillText("PICK STRESS", stressX, y - 14);
-  ctx.strokeStyle = "rgba(255,255,255,.15)";
-  ctx.strokeRect(stressX, y, barW, barH);
-  ctx.fillStyle =
-    state.pickStress > 0.7 ? "#ff5e7a" : state.pickStress > 0.35 ? "#ffcf5c" : "#46f0a0";
-  ctx.fillRect(stressX, y, state.pickStress * barW, barH);
-
-  const pickX = stressX + barW + 40;
-  ctx.fillStyle = "#6a6a76";
-  ctx.fillText("PICKS", pickX, y - 14);
-  for (let i = 0; i < 3; i++) {
-    const on = i < state.picksLeft;
-    ctx.fillStyle = on ? "#ffcf5c" : "rgba(255,207,92,.15)";
-    ctx.fillRect(pickX + i * 14, y, 8, barH);
-  }
-}
-
-function drawHeightGuides(
+function drawHint(
   ctx: CanvasRenderingContext2D,
   state: LockState,
-  pinXFor: (s: LockState, pos: number) => number,
+  now: number,
 ) {
-  for (const pin of state.pins) {
-    if (pin.isSet) continue;
-    const x = pinXFor(state, pin.id);
-    const keyBottom = CYL_BOTTOM - 20;
-    const y = keyBottom - pin.targetHeight * (keyBottom - SHEAR_Y);
-    ctx.strokeStyle = "rgba(255,207,92,.35)";
-    ctx.setLineDash([3, 3]);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x - 20, y);
-    ctx.lineTo(x + 20, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
+  const { text, color } = computeHint(state);
+  if (!text) return;
+  const pulse = 0.75 + 0.2 * Math.sin(now / 400);
+  ctx.font = "600 15px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(0,0,0,.55)";
+  const w = ctx.measureText(text).width + 28;
+  const x = CANVAS_W / 2 - w / 2;
+  const y = CANVAS_H - 44;
+  ctx.fillRect(x, y, w, 26);
+  ctx.strokeStyle = `${color}66`;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, 26);
+  ctx.fillStyle = color;
+  ctx.globalAlpha = pulse;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, CANVAS_W / 2, y + 13);
+  ctx.globalAlpha = 1;
+  ctx.textBaseline = "alphabetic";
+}
+
+function computeHint(state: LockState): { text: string; color: string } {
+  const cfg = state.config;
+  if (state.opened) return { text: "◆ CYLINDER OPEN", color: "#46f0a0" };
+  if (state.failed) return { text: "PICKS DEPLETED", color: "#ff5e7a" };
+
+  const bindingId = findBindingPinIdVisual(state);
+  const bindingPin =
+    bindingId !== null ? state.pins.find((p) => p.id === bindingId) : undefined;
+  const pickIndex = Math.round(state.pickPos);
+  const inSafe =
+    state.tension >= cfg.safeTensionMin &&
+    state.tension <= cfg.safeTensionMax;
+  const hasOverset = state.pins.some((p) => p.isOverset);
+  const hasFalseSet = state.pins.some((p) => p.falseSet);
+
+  if (state.pickStress > 0.7)
+    return { text: "PICK STRESSED — RELEASE SPACE", color: "#ff5e7a" };
+  if (hasOverset)
+    return { text: "OVERSET — RELEASE SPACE TO RESET", color: "#ff5e7a" };
+  if (state.tension > cfg.safeTensionMax)
+    return { text: "TOO MUCH TENSION", color: "#ff5e7a" };
+  if (hasFalseSet)
+    return { text: "FALSE SET — LIFT CAREFULLY", color: "#22e0ff" };
+
+  if (state.tension < 0.03) {
+    if (state.startedAt === null)
+      return { text: "HOLD SPACE (OR TAP TENSION) TO BEGIN", color: "#22e0ff" };
+    return { text: "APPLY TENSION — HOLD SPACE", color: "#ffcf5c" };
   }
+  if (!inSafe && state.tension < cfg.safeTensionMin)
+    return { text: "MORE TENSION", color: "#ffcf5c" };
+
+  if (!bindingPin) return { text: "◆ ALMOST THERE", color: "#46f0a0" };
+
+  if (cfg.showBindingPinHint && pickIndex !== bindingId)
+    return {
+      text: `MOVE TO PIN ${bindingId! + 1} (YELLOW)`,
+      color: "#ffcf5c",
+    };
+  if (!cfg.showBindingPinHint && pickIndex !== bindingId)
+    return { text: "FIND THE PIN THAT RESISTS", color: "#c3c3ce" };
+
+  if (bindingPin.currentHeight < bindingPin.targetHeight - cfg.tolerance)
+    return { text: "LIFT PIN (MOVE UP / W)", color: "#22e0ff" };
+  if (bindingPin.currentHeight > bindingPin.targetHeight + cfg.tolerance)
+    return { text: "TOO HIGH — LOWER SLIGHTLY", color: "#ffcf5c" };
+  return { text: "HOLD STEADY…", color: "#46f0a0" };
 }
 
 function drawTouchTensionZone(
