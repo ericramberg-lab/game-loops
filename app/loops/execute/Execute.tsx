@@ -52,7 +52,7 @@ function colorPoolFor(round: number): Color[] {
 }
 
 function roundTime(round: number): number {
-  return Math.max(1.5, 6.0 - (round - 1) * 0.32);
+  return Math.max(1.8, 6.0 - (round - 1) * 0.2);
 }
 
 function revealTime(round: number): number {
