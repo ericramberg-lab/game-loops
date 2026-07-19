@@ -12,7 +12,7 @@ export default function Page() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "24px 24px 48px",
+        padding: "clamp(14px, 3vw, 24px) clamp(12px, 3vw, 24px) 48px",
       }}
     >
       <div style={{ width: 900, maxWidth: "100%" }}>
@@ -33,7 +33,7 @@ export default function Page() {
               margin: 0,
               fontFamily: "var(--font-chakra-petch), sans-serif",
               fontWeight: 700,
-              fontSize: 44,
+              fontSize: "clamp(30px, 6vw, 44px)",
               letterSpacing: "-.01em",
               color: "#fff",
               textShadow: "0 0 30px rgba(255,45,156,.28)",

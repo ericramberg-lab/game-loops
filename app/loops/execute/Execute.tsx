@@ -13,6 +13,9 @@ const COLORS = {
 type Color = keyof typeof COLORS;
 const COLOR_ORDER: Color[] = ["red", "blue", "green", "yellow", "pink"];
 
+const WIRE_COUNT = 3;
+const START_LIVES = 3;
+
 type Wire = { id: number; color: Color; cut: boolean };
 type Command = { text: string; hasExecute: boolean; targets: Set<number> };
 type Status = "idle" | "playing" | "reveal" | "over";
@@ -32,44 +35,33 @@ type GameState = {
   revealAt: number;
 };
 
-const START_LIVES = 3;
-
 function pickOne<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
 }
 
-function pickTwo<T>(arr: readonly T[]): [T, T] {
-  const a = arr[Math.floor(Math.random() * arr.length)]!;
-  let b = arr[Math.floor(Math.random() * arr.length)]!;
-  let tries = 0;
-  while (b === a && tries < 20) {
-    b = arr[Math.floor(Math.random() * arr.length)]!;
-    tries++;
-  }
+function pickTwoDistinct<T>(arr: readonly T[]): [T, T] {
+  const a = pickOne(arr);
+  let b = pickOne(arr);
+  for (let tries = 0; b === a && tries < 20; tries++) b = pickOne(arr);
   return [a, b];
 }
 
-function wireCountFor(round: number): number {
-  return Math.min(6, 3 + Math.floor((round - 1) / 3));
-}
-
 function colorPoolFor(round: number): Color[] {
-  const n = Math.min(5, 3 + Math.floor((round - 1) / 5));
+  const n = Math.min(5, 3 + Math.floor((round - 1) / 4));
   return COLOR_ORDER.slice(0, n);
 }
 
 function roundTime(round: number): number {
-  return Math.max(1.6, 5.5 - (round - 1) * 0.32);
+  return Math.max(1.5, 6.0 - (round - 1) * 0.32);
 }
 
 function revealTime(round: number): number {
-  return Math.max(0.7, 1.2 - (round - 1) * 0.03);
+  return Math.max(0.55, 1.1 - (round - 1) * 0.04);
 }
 
 function makeWires(round: number, startId: number): Wire[] {
-  const count = wireCountFor(round);
   const pool = colorPoolFor(round);
-  return Array.from({ length: count }, (_, i) => ({
+  return Array.from({ length: WIRE_COUNT }, (_, i) => ({
     id: startId + i,
     color: pickOne(pool),
     cut: false,
@@ -81,43 +73,73 @@ type Template =
   | { kind: "all" }
   | { kind: "except"; c: Color }
   | { kind: "multi"; a: Color; b: Color }
-  | { kind: "nothing" };
+  | { kind: "nothing" }
+  | { kind: "position"; p: "left" | "middle" | "right" }
+  | { kind: "positionColor"; p: "left" | "right"; c: Color }
+  | { kind: "conditional"; ifColor: Color; thenColor: Color; elseColor: Color };
 
-function pickTemplate(round: number, colorsPresent: Color[]): Template {
+function pickTemplate(round: number, wires: Wire[]): Template {
+  const colorsPresent = Array.from(new Set(wires.map((w) => w.color)));
+  const pool = colorPoolFor(round);
   const opts: Template[] = [{ kind: "color", c: pickOne(colorsPresent) }];
+
+  if (round >= 2) opts.push({ kind: "nothing" });
   if (round >= 3) opts.push({ kind: "all" });
   if (round >= 4 && colorsPresent.length >= 2) {
     opts.push({ kind: "except", c: pickOne(colorsPresent) });
   }
+  if (round >= 5) {
+    opts.push({ kind: "position", p: pickOne(["left", "middle", "right"]) });
+  }
   if (round >= 6 && colorsPresent.length >= 2) {
-    const [a, b] = pickTwo(colorsPresent);
+    const [a, b] = pickTwoDistinct(colorsPresent);
     opts.push({ kind: "multi", a, b });
   }
-  if (round >= 2) opts.push({ kind: "nothing" });
+  if (round >= 7) {
+    opts.push({
+      kind: "positionColor",
+      p: Math.random() < 0.5 ? "left" : "right",
+      c: pickOne(colorsPresent),
+    });
+  }
+  if (round >= 9 && colorsPresent.length >= 2) {
+    const ifColor = pickOne(pool);
+    const [thenColor, elseColor] = pickTwoDistinct(colorsPresent);
+    opts.push({ kind: "conditional", ifColor, thenColor, elseColor });
+  }
   return pickOne(opts);
 }
 
 function templateToText(t: Template): string {
-  const upper = (c: Color) => c.toUpperCase();
+  const U = (c: Color) => c.toUpperCase();
   switch (t.kind) {
     case "color":
       return pickOne([
-        `cut ${upper(t.c)}`,
-        `cut the ${upper(t.c)} wire`,
-        `cut all ${upper(t.c)} wires`,
+        `cut ${U(t.c)}`,
+        `cut the ${U(t.c)} wire`,
+        `cut all ${U(t.c)} wires`,
       ]);
     case "all":
       return pickOne(["cut all wires", "cut everything"]);
     case "except":
       return pickOne([
-        `cut all except ${upper(t.c)}`,
-        `cut all non-${upper(t.c)} wires`,
-        `cut everything but ${upper(t.c)}`,
+        `cut all except ${U(t.c)}`,
+        `cut all non-${U(t.c)} wires`,
       ]);
     case "multi":
-      return `cut ${upper(t.a)} and ${upper(t.b)}`;
+      return `cut ${U(t.a)} and ${U(t.b)}`;
     case "nothing":
-      return pickOne(["cut nothing", "hold", "hands off", "don't cut anything"]);
+      return pickOne(["cut nothing", "hold", "don't cut anything"]);
+    case "position": {
+      const name = t.p.toUpperCase();
+      return `cut the ${name} wire`;
+    }
+    case "positionColor": {
+      const name = t.p === "left" ? "LEFTMOST" : "RIGHTMOST";
+      return `cut the ${name} ${U(t.c)}`;
+    }
+    case "conditional":
+      return `cut ${U(t.thenColor)} if a ${U(t.ifColor)} exists, else cut ${U(t.elseColor)}`;
   }
 }
 
@@ -135,14 +157,33 @@ function targetIdsFor(t: Template, wires: Wire[]): Set<number> {
       );
     case "nothing":
       return new Set();
+    case "position": {
+      const idx = t.p === "left" ? 0 : t.p === "middle" ? 1 : 2;
+      const w = wires[idx];
+      return w ? new Set([w.id]) : new Set();
+    }
+    case "positionColor": {
+      const matching = wires.filter((w) => w.color === t.c);
+      if (matching.length === 0) return new Set();
+      const target =
+        t.p === "left" ? matching[0]! : matching[matching.length - 1]!;
+      return new Set([target.id]);
+    }
+    case "conditional": {
+      const hasIf = wires.some((w) => w.color === t.ifColor);
+      const targetColor = hasIf ? t.thenColor : t.elseColor;
+      return new Set(
+        wires.filter((w) => w.color === targetColor).map((w) => w.id),
+      );
+    }
   }
 }
 
 function makeCommand(round: number, wires: Wire[]): Command {
-  const colorsPresent = Array.from(new Set(wires.map((w) => w.color)));
-  let template = pickTemplate(round, colorsPresent);
+  let template = pickTemplate(round, wires);
   const wantsExecute = Math.random() < 0.6;
   if (!wantsExecute && template.kind === "nothing") {
+    const colorsPresent = Array.from(new Set(wires.map((w) => w.color)));
     template = { kind: "color", c: pickOne(colorsPresent) };
   }
   const text = templateToText(template);
@@ -246,11 +287,38 @@ export default function Execute() {
   const cut = (id: number) => {
     setState((prev) => {
       if (prev.status !== "playing") return prev;
-      if (prev.wires.find((w) => w.id === id)?.cut) return prev;
-      return {
-        ...prev,
-        wires: prev.wires.map((w) => (w.id === id ? { ...w, cut: true } : w)),
-      };
+      const wire = prev.wires.find((w) => w.id === id);
+      if (!wire || wire.cut) return prev;
+      const newWires = prev.wires.map((w) =>
+        w.id === id ? { ...w, cut: true } : w,
+      );
+      const isTarget = prev.command.targets.has(id);
+      if (!isTarget) {
+        return {
+          ...prev,
+          wires: newWires,
+          status: "reveal",
+          result: "fail",
+          revealAt: Date.now() + revealTime(prev.round) * 1000,
+          lives: prev.lives - 1,
+          timeLeft: 0,
+        };
+      }
+      const allTargetsCut = Array.from(prev.command.targets).every((tid) =>
+        newWires.find((w) => w.id === tid)?.cut,
+      );
+      if (allTargetsCut) {
+        return {
+          ...prev,
+          wires: newWires,
+          status: "reveal",
+          result: "perfect",
+          revealAt: Date.now() + revealTime(prev.round) * 1000,
+          score: prev.score + prev.round * 30,
+          timeLeft: 0,
+        };
+      }
+      return { ...prev, wires: newWires };
     });
   };
 
@@ -268,7 +336,7 @@ export default function Execute() {
           border: "1px solid rgba(255,45,156,.25)",
           boxShadow: "0 0 40px rgba(255,45,156,.12)",
           background: "linear-gradient(180deg,#0c0716,#0a0510)",
-          padding: "36px 32px 40px",
+          padding: "clamp(20px, 3vw, 40px) clamp(14px, 3vw, 32px)",
           overflow: "hidden",
         }}
       >
@@ -299,7 +367,7 @@ export default function Execute() {
               alignItems: "center",
               justifyContent: "center",
               background: "rgba(4,3,10,.85)",
-              padding: 24,
+              padding: "clamp(16px, 4vw, 32px)",
               textAlign: "center",
               cursor: "pointer",
             }}
@@ -327,8 +395,8 @@ export default function Execute() {
           ONLY <span style={{ color: "#46f0a0" }}>EXECUTE</span>-PREFIXED
           COMMANDS COUNT
         </span>
-        <span>◆ CLICK / TAP A WIRE TO CUT IT</span>
-        <span>◆ WAIT FOR THE TIMER TO EVALUATE</span>
+        <span>◆ CUT THE RIGHT WIRES TO ADVANCE INSTANTLY</span>
+        <span>◆ ONE WRONG CUT ENDS THE ROUND</span>
       </div>
     </div>
   );
@@ -349,10 +417,11 @@ function StatsRow({
     <div
       style={{
         display: "flex",
-        gap: 16,
+        gap: 12,
         justifyContent: "space-between",
         alignItems: "stretch",
         marginBottom: 12,
+        flexWrap: "wrap",
       }}
     >
       <Lives lives={lives} />
@@ -365,7 +434,7 @@ function StatsRow({
 
 function Lives({ lives }: { lives: number }) {
   return (
-    <div style={{ flex: 1, minWidth: 180 }}>
+    <div style={{ flex: "1 1 160px", minWidth: 140 }}>
       <div
         style={{
           fontFamily: "var(--font-ibm-plex-mono), monospace",
@@ -410,7 +479,7 @@ function Lives({ lives }: { lives: number }) {
 
 function StatBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ minWidth: 100 }}>
+    <div style={{ minWidth: 78 }}>
       <div
         style={{
           fontFamily: "var(--font-ibm-plex-mono), monospace",
@@ -440,7 +509,7 @@ function BestBlock({ value }: { value: number }) {
   return (
     <div
       style={{
-        minWidth: 130,
+        minWidth: 120,
         padding: "6px 14px",
         border: "1px solid rgba(34,224,255,.4)",
         background: "rgba(34,224,255,.05)",
@@ -475,7 +544,7 @@ function BestBlock({ value }: { value: number }) {
 function CommandDisplay({ state }: { state: GameState }) {
   const { command, status, result } = state;
   if (status === "idle" || status === "over") {
-    return <div style={{ minHeight: 92 }} />;
+    return <div style={{ minHeight: 88 }} />;
   }
 
   if (status === "reveal") {
@@ -483,13 +552,13 @@ function CommandDisplay({ state }: { state: GameState }) {
     return (
       <div
         style={{
-          minHeight: 92,
+          minHeight: 88,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontFamily: "var(--font-chakra-petch), sans-serif",
           fontWeight: 700,
-          fontSize: 44,
+          fontSize: "clamp(28px, 6vw, 46px)",
           letterSpacing: ".08em",
           color: perfect ? "#46f0a0" : "#ff5e7a",
           textShadow: perfect
@@ -506,16 +575,18 @@ function CommandDisplay({ state }: { state: GameState }) {
   return (
     <div
       style={{
-        minHeight: 92,
+        minHeight: 88,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         fontFamily: "var(--font-ibm-plex-mono), monospace",
         fontWeight: 500,
-        fontSize: 38,
+        fontSize: "clamp(18px, 3.6vw, 34px)",
         letterSpacing: ".02em",
         color: "#f5f5fa",
         textAlign: "center",
+        lineHeight: 1.3,
+        padding: "0 8px",
       }}
     >
       {command.hasExecute ? (
@@ -549,7 +620,7 @@ function TimerBar({ state }: { state: GameState }) {
   return (
     <div
       style={{
-        margin: "16px auto 28px",
+        margin: "16px auto 24px",
         maxWidth: 640,
         height: 6,
         background: "rgba(255,255,255,.08)",
@@ -581,7 +652,7 @@ function WireRow({
   onCut: (id: number) => void;
 }) {
   if (state.wires.length === 0) {
-    return <div style={{ minHeight: 200 }} />;
+    return <div style={{ minHeight: 190 }} />;
   }
   const interactive = state.status === "playing";
   const reveal = state.status === "reveal";
@@ -589,10 +660,10 @@ function WireRow({
     <div
       style={{
         display: "flex",
-        gap: 20,
+        gap: "clamp(10px, 2.5vw, 24px)",
         justifyContent: "center",
         alignItems: "stretch",
-        minHeight: 200,
+        minHeight: 190,
         padding: "8px 0",
       }}
     >
@@ -636,11 +707,21 @@ function WireButton({
       style={{
         appearance: "none",
         position: "relative",
-        width: 110,
-        border: `1px solid ${showOutcome ? (correct ? "#46f0a0" : wrong ? "#ff5e7a" : "rgba(255,255,255,.1)") : "rgba(255,255,255,.1)"}`,
+        flex: "1 1 88px",
+        maxWidth: 130,
+        minWidth: 74,
+        border: `1px solid ${
+          showOutcome
+            ? correct
+              ? "#46f0a0"
+              : wrong
+                ? "#ff5e7a"
+                : "rgba(255,255,255,.1)"
+            : "rgba(255,255,255,.1)"
+        }`,
         background: "transparent",
         cursor: interactive && !wire.cut ? "pointer" : "default",
-        padding: "12px 8px",
+        padding: "12px 6px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -654,6 +735,8 @@ function WireButton({
               : "none"
           : "none",
         transition: "border-color .2s, box-shadow .2s",
+        WebkitTapHighlightColor: "transparent",
+        touchAction: "manipulation",
       }}
     >
       <span
@@ -671,7 +754,7 @@ function WireButton({
           position: "relative",
           width: 12,
           flex: 1,
-          minHeight: 150,
+          minHeight: 130,
           background: wire.cut ? "rgba(255,255,255,.06)" : color,
           boxShadow: wire.cut ? "none" : `0 0 18px ${color}88`,
           transition: "background .2s",
@@ -724,20 +807,20 @@ function IdleScreen() {
         style={{
           fontFamily: "var(--font-chakra-petch), sans-serif",
           fontWeight: 700,
-          fontSize: 46,
+          fontSize: "clamp(28px, 6vw, 46px)",
           color: "#fff",
           letterSpacing: "-.01em",
           textShadow: "0 0 30px rgba(255,45,156,.4)",
         }}
       >
-        CLICK TO <span style={{ color: "#22e0ff" }}>ARM</span>
+        TAP TO <span style={{ color: "#22e0ff" }}>ARM</span>
       </div>
       <div
         style={{
           marginTop: 18,
           maxWidth: 520,
           color: "#b7b7c4",
-          fontSize: 14,
+          fontSize: "clamp(13px, 2.4vw, 15px)",
           lineHeight: 1.55,
         }}
       >
@@ -775,7 +858,7 @@ function OverScreen({ state }: { state: GameState }) {
         style={{
           fontFamily: "var(--font-chakra-petch), sans-serif",
           fontWeight: 700,
-          fontSize: 44,
+          fontSize: "clamp(28px, 6vw, 44px)",
           color: "#fff",
         }}
       >
@@ -810,11 +893,11 @@ function OverScreen({ state }: { state: GameState }) {
           marginTop: 22,
           fontFamily: "var(--font-chakra-petch), sans-serif",
           fontWeight: 700,
-          fontSize: 22,
+          fontSize: "clamp(18px, 4vw, 24px)",
           color: "#fff",
         }}
       >
-        CLICK TO <span style={{ color: "#22e0ff" }}>RETRY</span>
+        TAP TO <span style={{ color: "#22e0ff" }}>RETRY</span>
       </div>
     </>
   );
