@@ -112,6 +112,20 @@ export const mechanics: Mechanic[] = [
     href: "/loops/feel-the-lock",
   },
   {
+    name: "Chain Reaction",
+    slug: "chain-reaction.loop",
+    blurb:
+      "Every move ripples through the chain. Raise one pin and its neighbors drop. Align every pin with the shear line to open the lock.",
+    engines: ["Web"],
+    platforms: ["Desktop", "Mobile"],
+    diff: "Medium",
+    price: "FREE",
+    preview: "chain reaction preview",
+    tags: ["lockpick", "puzzle", "focus"],
+    badge: "LIVE",
+    href: "/loops/chain-reaction",
+  },
+  {
     name: "Lockpicking",
     slug: "lockpicking.loop",
     blurb: "Tension-and-pick tumbler with a moving sweet spot.",
