@@ -68,3 +68,15 @@ a:hover {
   transition: opacity 0.2s;
 }
 .gl-card:hover .gl-card-overlay { opacity: 1; }
+
+.gl-input:focus {
+  border-color: #22e0ff !important;
+}
+
+.gl-channel {
+  transition: border-color 0.2s, transform 0.2s;
+}
+.gl-channel:hover {
+  border-color: rgba(34, 224, 255, 0.55) !important;
+  transform: translateX(4px);
+}
