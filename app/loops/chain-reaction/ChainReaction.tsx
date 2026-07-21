@@ -599,9 +599,8 @@ function PinColumn({
           }}
         />
 
-        {isSelected && isPreviewed === false && showLinkage && (
-          <LinkageBadge rule={rule} />
-        )}
+        <LinkageBadge rule={rule} highlight={isSelected} />
+        {isSelected && showLinkage && <StandardLinkageDots rule={rule} />}
 
         <div
           style={{
@@ -684,8 +683,10 @@ function PinColumn({
 
 function LinkageBadge({
   rule,
+  highlight,
 }: {
   rule: { moveStep: number; affects: number[] };
+  highlight: boolean;
 }) {
   const badges: string[] = [];
   if (rule.moveStep > 1) badges.push(`×${rule.moveStep}`);
@@ -700,17 +701,22 @@ function LinkageBadge({
     else if (onlyRight) badges.push("→ ONLY");
   }
   if (badges.length === 0) return null;
+  const accent = highlight ? "#ffcf5c" : "rgba(255,207,92,.7)";
+  const bg = highlight
+    ? "rgba(255,207,92,.14)"
+    : "rgba(255,207,92,.06)";
   return (
     <div
       style={{
         position: "absolute",
         left: 0,
         right: 0,
-        top: -18,
+        top: -20,
         display: "flex",
-        gap: 4,
+        gap: 3,
         justifyContent: "center",
         pointerEvents: "none",
+        flexWrap: "wrap",
       }}
     >
       {badges.map((b) => (
@@ -718,17 +724,51 @@ function LinkageBadge({
           key={b}
           style={{
             fontFamily: FONT_MONO,
+            fontWeight: 600,
             fontSize: 9,
             letterSpacing: ".08em",
             padding: "2px 5px",
-            color: "#ffcf5c",
-            border: "1px solid rgba(255,207,92,.5)",
-            background: "rgba(255,207,92,.08)",
+            color: accent,
+            border: `1px solid ${accent}`,
+            background: bg,
+            whiteSpace: "nowrap",
           }}
         >
           {b}
         </span>
       ))}
+    </div>
+  );
+}
+
+function StandardLinkageDots({
+  rule,
+}: {
+  rule: { moveStep: number; affects: number[] };
+}) {
+  const symmetric =
+    rule.affects.includes(-1) && rule.affects.includes(1);
+  const isSpecial =
+    rule.moveStep > 1 ||
+    rule.affects.some((o) => Math.abs(o) === 2) ||
+    (!symmetric && rule.affects.length === 1);
+  if (isSpecial) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: -14,
+        fontFamily: FONT_MONO,
+        fontSize: 9,
+        letterSpacing: ".08em",
+        color: "rgba(255,255,255,.35)",
+        textAlign: "center",
+        pointerEvents: "none",
+      }}
+    >
+      ↔ ±1
     </div>
   );
 }

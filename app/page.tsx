@@ -159,9 +159,14 @@ export default function Home() {
             letterSpacing: ".06em",
           }}
         >
-          {["Browse", "Engines", "Pricing", "Creators"].map((label) => (
-            <a key={label} href="#" className="gl-nav-link">
-              {label}
+          {[
+            { label: "Browse", href: "#" },
+            { label: "Engines", href: "#" },
+            { label: "Pricing", href: "/pricing" },
+            { label: "Contact", href: "/contact" },
+          ].map((l) => (
+            <a key={l.label} href={l.href} className="gl-nav-link">
+              {l.label}
             </a>
           ))}
         </nav>
@@ -174,7 +179,7 @@ export default function Home() {
             Sign in
           </a>
           <a
-            href="#"
+            href="/pricing"
             className="gl-btn-magenta"
             style={{
               fontFamily: FONT_DISPLAY,

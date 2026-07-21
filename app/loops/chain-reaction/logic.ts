@@ -44,7 +44,7 @@ function pinCountFor(difficulty: Difficulty): number {
 }
 
 function scrambleCountFor(difficulty: Difficulty): number {
-  return difficulty === "easy" ? 8 : difficulty === "medium" ? 13 : 18;
+  return difficulty === "easy" ? 6 : difficulty === "medium" ? 9 : 12;
 }
 
 function makeRules(difficulty: Difficulty, seed: number, pinCount: number): PinRule[] {
@@ -143,10 +143,10 @@ export function undoLast(puzzle: Puzzle): boolean {
 }
 
 export function restart(puzzle: Puzzle): void {
-  while (puzzle.history.length) {
-    const prev = puzzle.history.shift()!;
-    puzzle.heights = prev;
+  if (puzzle.history.length > 0) {
+    puzzle.heights = puzzle.history[0]!.slice();
   }
+  puzzle.history = [];
   puzzle.moveCount = 0;
   puzzle.opened = puzzle.heights.every((h) => h === 0);
   puzzle.startTime = null;
