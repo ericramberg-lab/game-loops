@@ -5,6 +5,8 @@ export type PinRule = {
   affects: number[];
 };
 
+export type ScrambleMove = { pin: number; direction: 1 | -1 };
+
 export type Puzzle = {
   difficulty: Difficulty;
   seed: number;
@@ -18,6 +20,7 @@ export type Puzzle = {
   startTime: number | null;
   opened: boolean;
   showLinkages: boolean;
+  scrambleMoves: ScrambleMove[];
 };
 
 export const HEIGHT_MIN = -3;
@@ -44,7 +47,7 @@ function pinCountFor(difficulty: Difficulty): number {
 }
 
 function scrambleCountFor(difficulty: Difficulty): number {
-  return difficulty === "easy" ? 6 : difficulty === "medium" ? 9 : 12;
+  return difficulty === "easy" ? 3 : difficulty === "medium" ? 6 : 9;
 }
 
 function makeRules(difficulty: Difficulty, seed: number, pinCount: number): PinRule[] {
@@ -172,10 +175,12 @@ export function generatePuzzle(difficulty: Difficulty, seed: number): Puzzle {
     startTime: null,
     opened: false,
     showLinkages: difficulty === "easy",
+    scrambleMoves: [],
   };
 
   const rng = makeRng(seed + 1);
   const target = scrambleCountFor(difficulty);
+  const scrambleMoves: ScrambleMove[] = [];
   let attempts = 0;
   let done = 0;
   let lastPin = -1;
@@ -187,6 +192,7 @@ export function generatePuzzle(difficulty: Difficulty, seed: number): Puzzle {
     if (pin === lastPin && dir === -lastDir) continue;
     if (!canMove(puzzle, pin, dir)) continue;
     applyMove(puzzle, pin, dir);
+    scrambleMoves.push({ pin, direction: dir });
     lastPin = pin;
     lastDir = dir;
     done += 1;
@@ -196,14 +202,23 @@ export function generatePuzzle(difficulty: Difficulty, seed: number): Puzzle {
     for (let i = 0; i < pinCount; i++) {
       if (canMove(puzzle, i, 1)) {
         applyMove(puzzle, i, 1);
+        scrambleMoves.push({ pin: i, direction: 1 });
         break;
       }
     }
   }
 
+  puzzle.scrambleMoves = scrambleMoves;
   puzzle.moveCount = 0;
   puzzle.history = [];
   puzzle.startTime = null;
   puzzle.opened = false;
   return puzzle;
+}
+
+export function reverseHint(puzzle: Puzzle): ScrambleMove | null {
+  const idx = puzzle.scrambleMoves.length - 1 - puzzle.moveCount;
+  if (idx < 0 || idx >= puzzle.scrambleMoves.length) return null;
+  const step = puzzle.scrambleMoves[idx]!;
+  return { pin: step.pin, direction: (-step.direction) as 1 | -1 };
 }

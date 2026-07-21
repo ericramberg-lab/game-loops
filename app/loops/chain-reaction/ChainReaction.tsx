@@ -9,9 +9,11 @@ import {
   HEIGHT_MIN,
   randomSeed,
   restart as restartPuzzle,
+  reverseHint,
   undoLast,
   type Difficulty,
   type Puzzle,
+  type ScrambleMove,
 } from "./logic";
 import { ChainAudio } from "./audio";
 
@@ -35,6 +37,7 @@ export default function ChainReaction() {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [invalidPin, setInvalidPin] = useState<number | null>(null);
   const [muted, setMuted] = useState<boolean>(false);
+  const [hint, setHint] = useState<ScrambleMove | null>(null);
   const audioRef = useRef<ChainAudio | null>(null);
 
   useEffect(() => {
@@ -56,6 +59,7 @@ export default function ChainReaction() {
       setPuzzle(p);
       setSelected(0);
       setNowMs(Date.now());
+      setHint(null);
     },
     [],
   );
@@ -63,6 +67,7 @@ export default function ChainReaction() {
   const tryMove = useCallback(
     (pinIdx: number, dir: 1 | -1) => {
       audioRef.current?.resume();
+      setHint(null);
       setPuzzle((prev) => {
         if (prev.opened) return prev;
         if (!canMove(prev, pinIdx, dir)) {
@@ -130,6 +135,13 @@ export default function ChainReaction() {
 
   const retry = () => startPuzzleFor(difficulty, seed);
   const newLock = () => startPuzzleFor(difficulty, randomSeed());
+  const showHint = () => {
+    const h = reverseHint(puzzle);
+    if (h) {
+      setHint(h);
+      setSelected(h.pin);
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -167,12 +179,14 @@ export default function ChainReaction() {
         moves={puzzle.moveCount}
         time={elapsed}
         canUndo={puzzle.history.length > 0}
+        canHint={!puzzle.opened && reverseHint(puzzle) !== null}
         muted={muted}
         onDifficulty={(d) => startPuzzleFor(d, randomSeed())}
         onUndo={undo}
         onRestart={doRestart}
         onRetry={retry}
         onNewLock={newLock}
+        onHint={showHint}
         onMute={() => setMuted((m) => !m)}
       />
       <div
@@ -201,6 +215,7 @@ export default function ChainReaction() {
           puzzle={puzzle}
           selected={selected}
           invalidPin={invalidPin}
+          hint={hint}
           onSelect={setSelected}
           onMove={tryMove}
         />
@@ -224,12 +239,14 @@ function TopBar({
   moves,
   time,
   canUndo,
+  canHint,
   muted,
   onDifficulty,
   onUndo,
   onRestart,
   onRetry,
   onNewLock,
+  onHint,
   onMute,
 }: {
   difficulty: Difficulty;
@@ -237,12 +254,14 @@ function TopBar({
   moves: number;
   time: number;
   canUndo: boolean;
+  canHint: boolean;
   muted: boolean;
   onDifficulty: (d: Difficulty) => void;
   onUndo: () => void;
   onRestart: () => void;
   onRetry: () => void;
   onNewLock: () => void;
+  onHint: () => void;
   onMute: () => void;
 }) {
   return (
@@ -308,6 +327,7 @@ function TopBar({
         <StatBox label="MOVES" value={moves.toString()} />
         <StatBox label="TIME" value={fmtTime(time)} />
         <div style={{ flex: 1 }} />
+        <ActionButton onClick={onHint} disabled={!canHint} label="? HINT" />
         <ActionButton onClick={onUndo} disabled={!canUndo} label="↶ UNDO" />
         <ActionButton onClick={onRestart} label="↺ RESTART" />
         <ActionButton onClick={onRetry} label="◆ RETRY" />
@@ -402,12 +422,14 @@ function PuzzleView({
   puzzle,
   selected,
   invalidPin,
+  hint,
   onSelect,
   onMove,
 }: {
   puzzle: Puzzle;
   selected: number;
   invalidPin: number | null;
+  hint: ScrambleMove | null;
   onSelect: (i: number) => void;
   onMove: (i: number, dir: 1 | -1) => void;
 }) {
@@ -448,6 +470,7 @@ function PuzzleView({
           isInvalid={i === invalidPin}
           showLinkage={puzzle.showLinkages}
           isDone={puzzle.opened}
+          hintDirection={hint && hint.pin === i ? hint.direction : null}
           canMoveUp={canMove(puzzle, i, 1)}
           canMoveDown={canMove(puzzle, i, -1)}
           onSelect={() => onSelect(i)}
@@ -479,6 +502,7 @@ function PinColumn({
   isInvalid,
   showLinkage,
   isDone,
+  hintDirection,
   canMoveUp,
   canMoveDown,
   onSelect,
@@ -495,6 +519,7 @@ function PinColumn({
   isInvalid: boolean;
   showLinkage: boolean;
   isDone: boolean;
+  hintDirection: 1 | -1 | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onSelect: () => void;
@@ -548,8 +573,13 @@ function PinColumn({
         disabled={!canMoveUp || isDone}
         style={{
           appearance: "none",
-          border: `1px solid ${canMoveUp && !isDone ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.08)"}`,
-          background: canMoveUp && !isDone ? "rgba(255,255,255,.04)" : "transparent",
+          border: `1px solid ${hintDirection === 1 ? "#22e0ff" : canMoveUp && !isDone ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.08)"}`,
+          background:
+            hintDirection === 1
+              ? "rgba(34,224,255,.18)"
+              : canMoveUp && !isDone
+                ? "rgba(255,255,255,.04)"
+                : "transparent",
           color: canMoveUp && !isDone ? "#c3c3ce" : "rgba(255,255,255,.2)",
           fontFamily: FONT_DISPLAY,
           fontWeight: 700,
@@ -557,6 +587,8 @@ function PinColumn({
           width: "100%",
           padding: "6px 0",
           cursor: canMoveUp && !isDone ? "pointer" : "not-allowed",
+          boxShadow:
+            hintDirection === 1 ? "0 0 14px rgba(34,224,255,.5)" : "none",
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation",
         }}
@@ -633,8 +665,13 @@ function PinColumn({
         disabled={!canMoveDown || isDone}
         style={{
           appearance: "none",
-          border: `1px solid ${canMoveDown && !isDone ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.08)"}`,
-          background: canMoveDown && !isDone ? "rgba(255,255,255,.04)" : "transparent",
+          border: `1px solid ${hintDirection === -1 ? "#22e0ff" : canMoveDown && !isDone ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.08)"}`,
+          background:
+            hintDirection === -1
+              ? "rgba(34,224,255,.18)"
+              : canMoveDown && !isDone
+                ? "rgba(255,255,255,.04)"
+                : "transparent",
           color: canMoveDown && !isDone ? "#c3c3ce" : "rgba(255,255,255,.2)",
           fontFamily: FONT_DISPLAY,
           fontWeight: 700,
@@ -642,6 +679,8 @@ function PinColumn({
           width: "100%",
           padding: "6px 0",
           cursor: canMoveDown && !isDone ? "pointer" : "not-allowed",
+          boxShadow:
+            hintDirection === -1 ? "0 0 14px rgba(34,224,255,.5)" : "none",
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation",
         }}
